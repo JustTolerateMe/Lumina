@@ -1,7 +1,7 @@
-import { GenerationRequest } from '../types';
+import { ApparelGenerationRequest } from '../types';
 import { CAMPAIGN_PRESETS, SKIN_TONE_DESCRIPTIONS } from './presets';
 
-export function buildCampaignPrompt(req: GenerationRequest): string {
+export function buildCampaignPrompt(req: ApparelGenerationRequest): string {
   const { garment, model, campaign } = req;
   const preset = CAMPAIGN_PRESETS[campaign ?? 'minimalist_luxury'];
 

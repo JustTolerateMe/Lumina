@@ -1,7 +1,7 @@
-import { GenerationRequest } from '../types';
+import { ApparelGenerationRequest } from '../types';
 import { MODEL_POSE_PRESETS, SKIN_TONE_DESCRIPTIONS } from './presets';
 
-export function buildStudioPrompt(req: GenerationRequest): string {
+export function buildStudioPrompt(req: ApparelGenerationRequest): string {
   const { garment, model } = req;
 
   return `A professional e-commerce product photograph of the garment shown \

@@ -1,4 +1,10 @@
-export type GenerationMode = 'studio' | 'lifestyle' | 'on-figure' | 'campaign';
+export type ProductCategory = 'apparel' | 'home' | 'hardlines';
+
+export type ApparelMode = 'studio' | 'lifestyle' | 'on-figure' | 'campaign';
+export type HomeMode = 'home-clean-cut' | 'home-room-scene' | 'home-lifestyle-vignette';
+export type HardlinesMode = 'hardlines-clean-cut' | 'hardlines-hero-shot' | 'hardlines-in-context';
+
+export type GenerationMode = ApparelMode | HomeMode | HardlinesMode;
 
 export type Gender = 'female' | 'male' | 'unisex';
 
@@ -8,6 +14,27 @@ export type GarmentType =
   | 't-shirt' | 'hoodie' | 'sweatshirt' | 'jacket' | 'coat'
   | 'dress' | 'skirt' | 'pants' | 'shorts' | 'jeans'
   | 'blouse' | 'button-up' | 'polo' | 'vest' | 'cardigan';
+
+export type HomeProductType =
+  | 'furniture' | 'decor' | 'textiles' | 'lighting' | 'kitchenware' | 'tableware';
+
+export type HardlinesProductType =
+  | 'electronics' | 'appliances' | 'tools' | 'gadgets' | 'automotive' | 'sports_equipment';
+
+export type ProductMaterial =
+  | 'cotton' | 'polyester' | 'wool' | 'silk' | 'denim' | 'leather'
+  | 'wood' | 'metal' | 'glass' | 'ceramic' | 'plastic' | 'stone' | 'concrete';
+
+export type ProductFinish =
+  | 'matte' | 'glossy' | 'satin' | 'brushed' | 'polished' | 'textured' | 'distressed';
+
+export type HomeRoomStyle =
+  | 'minimalist' | 'scandinavian' | 'mid-century' | 'industrial'
+  | 'bohemian' | 'japandi' | 'coastal' | 'traditional';
+
+export type HardlinesContext =
+  | 'desk_workspace' | 'kitchen_counter' | 'outdoor_adventure'
+  | 'gym_fitness' | 'commute' | 'bedside_table' | 'living_room_shelf';
 
 export type AspectRatio = '1:1' | '4:5' | '3:4' | '2:3' | '9:16';
 
@@ -29,6 +56,29 @@ export interface GarmentConfig {
   hasLogo: boolean;
   logoDescription?: string;
   fit: 'oversized' | 'regular' | 'slim' | 'fitted';
+  customInstructions?: string;
+}
+
+export interface HomeProductConfig {
+  type: HomeProductType;
+  colorDescription: string;
+  material: ProductMaterial;
+  finish: ProductFinish;
+  dimensions?: string;
+  hasPattern: boolean;
+  patternDescription?: string;
+  customInstructions?: string;
+}
+
+export interface HardlinesProductConfig {
+  type: HardlinesProductType;
+  colorDescription: string;
+  material: ProductMaterial;
+  finish: ProductFinish;
+  dimensions?: string;
+  hasBranding: boolean;
+  brandingDescription?: string;
+  customInstructions?: string;
 }
 
 export interface ModelConfig {
@@ -37,17 +87,41 @@ export interface ModelConfig {
   pose: ModelPose;
 }
 
-export interface GenerationRequest {
-  mode: GenerationMode;
-  garment: GarmentConfig;
-  model: ModelConfig;
-  scene?: LifestyleScene;
-  campaign?: CampaignStyle;
+export interface BaseGenerationRequest {
   aspectRatio: AspectRatio;
   imageSize: ImageSize;
   sourceImageBase64: string;
   sourceImageMimeType: string;
+  customInstructions?: string;
 }
+
+export interface ApparelGenerationRequest extends BaseGenerationRequest {
+  category: 'apparel';
+  mode: ApparelMode;
+  garment: GarmentConfig;
+  model: ModelConfig;
+  scene?: LifestyleScene;
+  campaign?: CampaignStyle;
+}
+
+export interface HomeGenerationRequest extends BaseGenerationRequest {
+  category: 'home';
+  mode: HomeMode;
+  product: HomeProductConfig;
+  roomStyle?: HomeRoomStyle;
+}
+
+export interface HardlinesGenerationRequest extends BaseGenerationRequest {
+  category: 'hardlines';
+  mode: HardlinesMode;
+  product: HardlinesProductConfig;
+  context?: HardlinesContext;
+}
+
+export type GenerationRequest =
+  | ApparelGenerationRequest
+  | HomeGenerationRequest
+  | HardlinesGenerationRequest;
 
 export interface GenerationResult {
   id: string;

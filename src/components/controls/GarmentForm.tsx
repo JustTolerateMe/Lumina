@@ -111,6 +111,19 @@ export function GarmentForm({ value, onChange }: Props) {
           className={inputClass}
         />
       )}
+      {/* Custom Instructions */}
+      <div>
+        <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider block mb-2">
+          Styling Notes (Optional)
+        </label>
+        <textarea
+          rows={2}
+          value={value.customInstructions ?? ''}
+          onChange={(e) => update({ customInstructions: e.target.value })}
+          placeholder="e.g. keep the jacket open, roll up the sleeves..."
+          className={inputClass + " resize-none"}
+        />
+      </div>
     </div>
   );
 }

@@ -1,25 +1,42 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGeneration } from './hooks/useGeneration';
 import { useUpload } from './hooks/useUpload';
 import { Header } from './components/layout/Header';
 import { UploadZone } from './components/upload/UploadZone';
 import { ModeSelector } from './components/controls/ModeSelector';
 import { GarmentForm } from './components/controls/GarmentForm';
+import { HomeProductForm } from './components/controls/HomeProductForm';
+import { HardlinesProductForm } from './components/controls/HardlinesProductForm';
 import { ModelPicker } from './components/controls/ModelPicker';
 import { ScenePicker } from './components/controls/ScenePicker';
+import { RoomStylePicker } from './components/controls/RoomStylePicker';
+import { HardlinesContextPicker } from './components/controls/HardlinesContextPicker';
 import { CampaignPicker } from './components/controls/CampaignPicker';
 import { GenerationCanvas } from './components/output/GenerationCanvas';
 import {
-  GenerationMode, GarmentConfig, ModelConfig,
-  LifestyleScene, CampaignStyle, AspectRatio, ImageSize,
+  ProductCategory, GenerationMode, ApparelMode, HomeMode, HardlinesMode,
+  GarmentConfig, HomeProductConfig, HardlinesProductConfig,
+  ModelConfig, LifestyleScene, HomeRoomStyle, HardlinesContext,
+  CampaignStyle, AspectRatio, ImageSize, GenerationRequest
 } from './types';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Shirt, Home, Smartphone } from 'lucide-react';
 
 export default function App() {
   const { state, generateImage, reset } = useGeneration();
   const { image, handleFile, clear } = useUpload();
 
+  // Category & Mode State
+  const [category, setCategory] = useState<ProductCategory>('apparel');
   const [mode, setMode] = useState<GenerationMode>('studio');
+
+  // Reset mode when category changes
+  useEffect(() => {
+    if (category === 'apparel') setMode('studio');
+    else if (category === 'home') setMode('home-clean-cut');
+    else if (category === 'hardlines') setMode('hardlines-clean-cut');
+  }, [category]);
+
+  // Apparel State
   const [garment, setGarment] = useState<GarmentConfig>({
     type: 't-shirt',
     colorDescription: '',
@@ -34,25 +51,79 @@ export default function App() {
   });
   const [scene, setScene] = useState<LifestyleScene>('minimal_indoor');
   const [campaign, setCampaign] = useState<CampaignStyle>('minimalist_luxury');
+
+  // Home State
+  const [homeProduct, setHomeProduct] = useState<HomeProductConfig>({
+    type: 'furniture',
+    colorDescription: '',
+    material: 'wood',
+    finish: 'matte',
+    hasPattern: false,
+  });
+  const [roomStyle, setRoomStyle] = useState<HomeRoomStyle>('minimalist');
+
+  // Hardlines State
+  const [hardlinesProduct, setHardlinesProduct] = useState<HardlinesProductConfig>({
+    type: 'electronics',
+    colorDescription: '',
+    material: 'metal',
+    finish: 'matte',
+    hasBranding: false,
+  });
+  const [hardlinesContext, setHardlinesContext] = useState<HardlinesContext>('desk_workspace');
+
+  // Global State
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [imageSize] = useState<ImageSize>('2K');
 
-  const canGenerate = image && garment.colorDescription.length > 3;
+  const colorDesc = category === 'apparel' ? garment.colorDescription :
+    category === 'home' ? homeProduct.colorDescription :
+      hardlinesProduct.colorDescription;
+
+  const canGenerate = image && colorDesc.length > 3;
 
   async function handleGenerate() {
     if (!image || !canGenerate) return;
     reset();
-    await generateImage({
-      mode,
-      garment,
-      model: modelConfig,
-      scene,
-      campaign,
+
+    let request: GenerationRequest;
+
+    const base = {
       aspectRatio,
       imageSize,
       sourceImageBase64: image.base64,
       sourceImageMimeType: image.mimeType,
-    });
+    };
+
+    if (category === 'apparel') {
+      request = {
+        ...base,
+        category: 'apparel',
+        mode: mode as ApparelMode,
+        garment,
+        model: modelConfig,
+        scene,
+        campaign,
+      };
+    } else if (category === 'home') {
+      request = {
+        ...base,
+        category: 'home',
+        mode: mode as HomeMode,
+        product: homeProduct,
+        roomStyle,
+      };
+    } else {
+      request = {
+        ...base,
+        category: 'hardlines',
+        mode: mode as HardlinesMode,
+        product: hardlinesProduct,
+        context: hardlinesContext,
+      };
+    }
+
+    await generateImage(request);
   }
 
   return (
@@ -63,24 +134,62 @@ export default function App() {
         {/* LEFT PANEL — Controls */}
         <aside className="w-80 border-r border-zinc-800 overflow-y-auto p-4 flex flex-col gap-4 shrink-0">
 
+          {/* Category Selector */}
+          <div>
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
+              Product Category
+            </label>
+            <div className="grid grid-cols-3 gap-1.5 mt-2">
+              {[
+                { id: 'apparel', label: 'Apparel', icon: Shirt },
+                { id: 'home', label: 'Home', icon: Home },
+                { id: 'hardlines', label: 'Hardlines', icon: Smartphone },
+              ].map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setCategory(id as ProductCategory)}
+                  className={`flex flex-col items-center gap-1.5 py-2 rounded-lg text-[10px] font-medium transition-all
+                    ${category === id
+                      ? 'bg-violet-600/20 border border-violet-500/50 text-violet-300'
+                      : 'bg-zinc-800 border border-transparent text-zinc-500 hover:bg-zinc-700'}`}
+                >
+                  <Icon size={16} />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <UploadZone
             image={image}
             onFile={handleFile}
             onClear={clear}
           />
 
-          <ModeSelector value={mode} onChange={setMode} />
+          <ModeSelector category={category} value={mode} onChange={setMode} />
 
-          <GarmentForm value={garment} onChange={setGarment} />
-
-          <ModelPicker value={modelConfig} onChange={setModelConfig} />
-
-          {mode === 'lifestyle' && (
-            <ScenePicker value={scene} onChange={setScene} />
+          {/* Category-specific forms */}
+          {category === 'apparel' && (
+            <>
+              <GarmentForm value={garment} onChange={setGarment} />
+              <ModelPicker value={modelConfig} onChange={setModelConfig} />
+              {mode === 'lifestyle' && <ScenePicker value={scene} onChange={setScene} />}
+              {mode === 'campaign' && <CampaignPicker value={campaign} onChange={setCampaign} />}
+            </>
           )}
 
-          {mode === 'campaign' && (
-            <CampaignPicker value={campaign} onChange={setCampaign} />
+          {category === 'home' && (
+            <>
+              <HomeProductForm value={homeProduct} onChange={setHomeProduct} />
+              {mode !== 'home-clean-cut' && <RoomStylePicker value={roomStyle} onChange={setRoomStyle} />}
+            </>
+          )}
+
+          {category === 'hardlines' && (
+            <>
+              <HardlinesProductForm value={hardlinesProduct} onChange={setHardlinesProduct} />
+              {mode === 'hardlines-in-context' && <HardlinesContextPicker value={hardlinesContext} onChange={setHardlinesContext} />}
+            </>
           )}
 
           {/* Aspect Ratio */}
@@ -110,7 +219,7 @@ export default function App() {
             onClick={handleGenerate}
             disabled={!canGenerate || state.status === 'generating'}
             className={`w-full py-3 rounded-lg font-semibold text-sm
-              flex items-center justify-center gap-2 transition-all
+              flex items-center justify-center gap-2 transition-all mt-auto
               ${canGenerate && state.status !== 'generating'
                 ? 'bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-900/50'
                 : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
@@ -122,12 +231,12 @@ export default function App() {
 
           {!image && (
             <p className="text-xs text-zinc-500 text-center">
-              Upload a garment photo to get started
+              Upload a product photo to get started
             </p>
           )}
-          {image && !garment.colorDescription && (
+          {image && !colorDesc && (
             <p className="text-xs text-amber-500 text-center">
-              Describe the garment color to continue
+              Describe the product color to continue
             </p>
           )}
         </aside>

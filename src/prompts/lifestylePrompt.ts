@@ -1,7 +1,7 @@
-import { GenerationRequest } from '../types';
+import { ApparelGenerationRequest } from '../types';
 import { LIFESTYLE_SCENE_PRESETS, MODEL_POSE_PRESETS, SKIN_TONE_DESCRIPTIONS } from './presets';
 
-export function buildLifestylePrompt(req: GenerationRequest): string {
+export function buildLifestylePrompt(req: ApparelGenerationRequest): string {
   const { garment, model, scene } = req;
   const scenePreset = LIFESTYLE_SCENE_PRESETS[scene ?? 'minimal_indoor'];
 
@@ -31,8 +31,8 @@ GARMENT PRESERVATION — CRITICAL:
 - Garment geometry unchanged: silhouette, proportions, hem, sleeves, neckline
 - Fabric drape natural and appropriate for ${garment.material} — \
 ${garment.material === 'denim' ? 'structured and holds shape' :
-  garment.material === 'silk' ? 'fluid and flowing' :
-  garment.material === 'cotton' ? 'soft natural drape' : 'natural drape'}
+      garment.material === 'silk' ? 'fluid and flowing' :
+        garment.material === 'cotton' ? 'soft natural drape' : 'natural drape'}
 - The garment is the hero of this image
 
 PHOTOGRAPHY:

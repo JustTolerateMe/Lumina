@@ -10,7 +10,7 @@ export function Header() {
         <span className="text-lg font-semibold tracking-tight text-zinc-100">
           Lumina
         </span>
-        <span className="text-xs text-zinc-500 font-medium ml-1">AI Apparel Photography</span>
+        <span className="text-xs text-zinc-500 font-medium ml-1">AI Product Photography</span>
       </div>
 
       <div className="flex items-center gap-3">

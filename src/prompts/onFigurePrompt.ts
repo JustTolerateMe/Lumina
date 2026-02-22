@@ -1,4 +1,4 @@
-import { GenerationRequest } from '../types';
+import { ApparelGenerationRequest } from '../types';
 import { MODEL_POSE_PRESETS, SKIN_TONE_DESCRIPTIONS } from './presets';
 
 export function buildAnalysisPrompt(): string {
@@ -35,7 +35,7 @@ accuracy of generated images. Return ONLY the JSON object, no other text.`;
 }
 
 export function buildOnFigurePrompt(
-  req: GenerationRequest,
+  req: ApparelGenerationRequest,
   analysisJson: string
 ): string {
   const { model } = req;
