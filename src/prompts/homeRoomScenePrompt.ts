@@ -4,7 +4,7 @@ import { HOME_ROOM_STYLE_PRESETS, PRODUCT_MATERIAL_DESCRIPTIONS } from './preset
 export function buildHomeRoomScenePrompt(req: HomeGenerationRequest): string {
     const { product, roomStyle } = req;
     const style = HOME_ROOM_STYLE_PRESETS[roomStyle ?? 'minimalist'];
-    const materialDesc = PRODUCT_MATERIAL_DESCRIPTIONS[product.material];
+    const materialDesc = (PRODUCT_MATERIAL_DESCRIPTIONS as any)[product.material] || product.material;
 
     return `A professional interior design photograph featuring the home product from the reference image, styled in a ${style.label} environment.
 

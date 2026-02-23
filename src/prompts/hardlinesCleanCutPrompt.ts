@@ -3,8 +3,8 @@ import { PRODUCT_FINISH_DESCRIPTIONS, PRODUCT_MATERIAL_DESCRIPTIONS } from './pr
 
 export function buildHardlinesCleanCutPrompt(req: HardlinesGenerationRequest): string {
     const { product } = req;
-    const materialDesc = PRODUCT_MATERIAL_DESCRIPTIONS[product.material];
-    const finishDesc = PRODUCT_FINISH_DESCRIPTIONS[product.finish];
+    const materialDesc = (PRODUCT_MATERIAL_DESCRIPTIONS as any)[product.material] || product.material;
+    const finishDesc = (PRODUCT_FINISH_DESCRIPTIONS as any)[product.finish] || product.finish;
 
     return `A professional technical product photograph of the consumer electronics/hardlines item in the reference image.
 

@@ -3,8 +3,8 @@ import { PRODUCT_FINISH_DESCRIPTIONS, PRODUCT_MATERIAL_DESCRIPTIONS } from './pr
 
 export function buildHardlinesHeroShotPrompt(req: HardlinesGenerationRequest): string {
     const { product } = req;
-    const materialDesc = PRODUCT_MATERIAL_DESCRIPTIONS[product.material];
-    const finishDesc = PRODUCT_FINISH_DESCRIPTIONS[product.finish];
+    const materialDesc = (PRODUCT_MATERIAL_DESCRIPTIONS as any)[product.material] || product.material;
+    const finishDesc = (PRODUCT_FINISH_DESCRIPTIONS as any)[product.finish] || product.finish;
 
     return `A dramatic, high-end editorial hero photograph of the product shown in the reference image. 
 

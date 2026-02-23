@@ -3,8 +3,8 @@ import { PRODUCT_FINISH_DESCRIPTIONS, PRODUCT_MATERIAL_DESCRIPTIONS } from './pr
 
 export function buildHomeCleanCutPrompt(req: HomeGenerationRequest): string {
     const { product } = req;
-    const materialDesc = PRODUCT_MATERIAL_DESCRIPTIONS[product.material];
-    const finishDesc = PRODUCT_FINISH_DESCRIPTIONS[product.finish];
+    const materialDesc = (PRODUCT_MATERIAL_DESCRIPTIONS as any)[product.material] || product.material;
+    const finishDesc = (PRODUCT_FINISH_DESCRIPTIONS as any)[product.finish] || product.finish;
 
     return `A professional e-commerce product photograph of the home item shown in the attached reference image.
 
