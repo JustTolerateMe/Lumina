@@ -1,6 +1,7 @@
-import { Download, RotateCcw, Sparkles } from 'lucide-react';
+import { Download, RotateCcw, Sparkles, AlertTriangle } from 'lucide-react';
 import { GenerationState } from '../../types';
 import { downloadImage } from '../../services/imageUtils';
+import { FidelityPanel } from './FidelityPanel';
 
 interface Props {
   state: GenerationState;
@@ -28,7 +29,7 @@ export function GenerationCanvas({ state, onReset }: Props) {
             <Sparkles size={32} className="text-zinc-600" />
           </div>
           <p className="text-zinc-400 font-medium">Your generation will appear here</p>
-          <p className="text-zinc-600 text-sm mt-1">Upload a garment and click Generate</p>
+          <p className="text-zinc-600 text-sm mt-1">Upload a product photo and click Generate</p>
         </div>
       </div>
     );
@@ -70,12 +71,13 @@ export function GenerationCanvas({ state, onReset }: Props) {
 
   // Result
   if (state.status === 'done' && state.result) {
+    const r = state.result;
     return (
       <div className="h-full flex flex-col">
         {/* Toolbar */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
           <p className="text-sm text-zinc-400">
-            {state.result.request.mode} · {state.result.request.aspectRatio}
+            {r.request.mode} · {r.request.aspectRatio}
           </p>
           <div className="flex gap-2">
             <button
@@ -97,14 +99,39 @@ export function GenerationCanvas({ state, onReset }: Props) {
           </div>
         </div>
 
+        {/* Safety Valve Warning */}
+        {r.validationWarning && (
+          <div className={`px-4 py-2 flex items-center gap-3 border-b border-zinc-800 animate-in fade-in slide-in-from-top-2 duration-300
+            ${r.validationWarning.severity === 'high' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>
+            <AlertTriangle size={16} className="shrink-0" />
+            <p className="text-xs font-medium leading-relaxed">
+              {r.validationWarning.message}
+            </p>
+          </div>
+        )}
+
         {/* Image */}
         <div className="flex-1 flex items-center justify-center p-6 overflow-auto">
           <img
-            src={`data:${state.result.mimeType};base64,${state.result.imageBase64}`}
+            src={`data:${r.mimeType};base64,${r.imageBase64}`}
             alt="Generated product photo"
             className="max-h-full max-w-full object-contain rounded-xl shadow-2xl"
           />
         </div>
+
+        {/* Fidelity Panel */}
+        {r.qcScores && (
+          <FidelityPanel
+            semanticScores={r.qcScores}
+            pixelScores={r.pixelQCScores}
+            compositeScore={r.compositeScore}
+            pass={r.qcPass}
+            issues={r.qcIssues}
+            riskProfile={r.riskProfile}
+            iterationCount={r.iterationCount}
+            mode={r.request.mode}
+          />
+        )}
       </div>
     );
   }

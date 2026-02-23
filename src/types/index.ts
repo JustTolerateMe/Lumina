@@ -13,13 +13,16 @@ export type SkinTone = 'fair' | 'light' | 'medium' | 'tan' | 'deep';
 export type GarmentType =
   | 't-shirt' | 'hoodie' | 'sweatshirt' | 'jacket' | 'coat'
   | 'dress' | 'skirt' | 'pants' | 'shorts' | 'jeans'
-  | 'blouse' | 'button-up' | 'polo' | 'vest' | 'cardigan';
+  | 'blouse' | 'button-up' | 'polo' | 'vest' | 'cardigan'
+  | 'other' | string;
 
 export type HomeProductType =
-  | 'furniture' | 'decor' | 'textiles' | 'lighting' | 'kitchenware' | 'tableware';
+  | 'furniture' | 'decor' | 'textiles' | 'lighting' | 'kitchenware' | 'tableware'
+  | 'other' | string;
 
 export type HardlinesProductType =
-  | 'electronics' | 'appliances' | 'tools' | 'gadgets' | 'automotive' | 'sports_equipment';
+  | 'electronics' | 'appliances' | 'tools' | 'gadgets' | 'automotive' | 'sports_equipment'
+  | 'other' | string;
 
 export type ProductMaterial =
   | 'cotton' | 'polyester' | 'wool' | 'silk' | 'denim' | 'leather'
@@ -62,8 +65,8 @@ export interface GarmentConfig {
 export interface HomeProductConfig {
   type: HomeProductType;
   colorDescription: string;
-  material: ProductMaterial;
-  finish: ProductFinish;
+  material: ProductMaterial | string;
+  finish: ProductFinish | string;
   dimensions?: string;
   hasPattern: boolean;
   patternDescription?: string;
@@ -73,8 +76,8 @@ export interface HomeProductConfig {
 export interface HardlinesProductConfig {
   type: HardlinesProductType;
   colorDescription: string;
-  material: ProductMaterial;
-  finish: ProductFinish;
+  material: ProductMaterial | string;
+  finish: ProductFinish | string;
   dimensions?: string;
   hasBranding: boolean;
   brandingDescription?: string;
@@ -123,6 +126,101 @@ export type GenerationRequest =
   | HomeGenerationRequest
   | HardlinesGenerationRequest;
 
+// ── Risk Analysis ────────────────────────────────────────────────────
+
+export type RiskFlag =
+  | 'reflective_surface'
+  | 'many_small_components'
+  | 'micro_text_logo'
+  | 'symmetry_critical'
+  | 'repeating_elements'
+  | 'transparent_material'
+  | 'complex_pattern'
+  | 'high_contrast_branding'
+  | 'multi_section_config'
+  | 'curved_organic_shape';
+
+export interface RiskProfile {
+  flags: RiskFlag[];
+  descriptions: Record<string, string>;
+  constraintOverrides: string[];
+}
+
+// ── QC Scoring ───────────────────────────────────────────────────────
+
+export interface UniversalQCScores {
+  colorAccuracy: number;
+  configurationMatch: number;
+  componentCount: number;
+  proportionFidelity: number;
+  constructionDetails: number;
+  brandingPreservation: number;
+  overallFidelity: number;
+}
+
+export interface GarmentQCScores {
+  colorAccuracy: number;
+  graphicPreservation: number;
+  silhouetteMatch: number;
+  textureMatch: number;
+  overallFidelity: number;
+}
+
+export type QCScores = UniversalQCScores | GarmentQCScores;
+
+export interface QCResult {
+  scores: QCScores;
+  pass: boolean;
+  issues: string[];
+  recommendation: 'approve' | 'regenerate';
+}
+
+// ── Pixel QC ─────────────────────────────────────────────────────────
+
+export interface PixelQCScores {
+  ssim: number;
+  colorDelta: number;
+  edgeOverlap: number;
+  histogramMatch: number;
+}
+
+// ── Brand Calibration ────────────────────────────────────────────────
+
+export interface BrandProfile {
+  id: string;
+  name: string;
+  maxColorDelta: number;
+  minGeometryScore: number;
+  logoTolerance: 'zero' | 'low' | 'medium';
+  allowedCreativeDeviation: 'none' | 'minimal' | 'moderate';
+  customNotes?: string;
+}
+
+// ── Generation History ───────────────────────────────────────────────
+
+export interface HistoryEntry {
+  id: string;
+  timestamp: number;
+  mode: GenerationMode;
+  category: ProductCategory;
+  thumbnailBase64: string;
+  thumbnailMime: string;
+  qcScores?: QCScores;
+  pixelQCScores?: PixelQCScores;
+  compositeScore?: number;
+  pass?: boolean;
+  issues?: string[];
+  riskProfile?: RiskProfile;
+  iterationCount: number;
+  requestSummary: {
+    category: ProductCategory;
+    mode: GenerationMode;
+    colorDescription: string;
+  };
+}
+
+// ── Generation Result & State ────────────────────────────────────────
+
 export interface GenerationResult {
   id: string;
   imageBase64: string;
@@ -130,11 +228,31 @@ export interface GenerationResult {
   request: GenerationRequest;
   timestamp: number;
   analysisText?: string;
+  riskProfile?: RiskProfile;
+  qcScores?: QCScores;
+  qcPass?: boolean;
+  qcIssues?: string[];
+  pixelQCScores?: PixelQCScores;
+  compositeScore?: number;
+  iterationCount?: number;
+  validationWarning?: {
+    severity: 'low' | 'high';
+    message: string;
+  };
+}
+
+export interface ProductSuggestions {
+  category: ProductCategory;
+  type?: string;
+  colorDescription?: string;
+  material?: string;
+  finish?: string;
 }
 
 export interface GenerationState {
   status: 'idle' | 'analyzing' | 'generating' | 'checking' | 'done' | 'error';
   result?: GenerationResult;
+  suggestions?: ProductSuggestions;
   error?: string;
   progress?: string;
 }

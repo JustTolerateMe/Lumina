@@ -1,6 +1,11 @@
 import { Sparkles } from 'lucide-react';
+import { ReactNode } from 'react';
 
-export function Header() {
+interface Props {
+  children?: ReactNode;
+}
+
+export function Header({ children }: Props) {
   return (
     <header className="h-16 border-b border-zinc-800 bg-zinc-950 flex items-center justify-between px-6 shrink-0">
       <div className="flex items-center gap-2.5">
@@ -14,6 +19,7 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-3">
+        {children}
         <span className="text-xs text-zinc-600">Powered by Gemini</span>
       </div>
     </header>

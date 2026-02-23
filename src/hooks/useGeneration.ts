@@ -1,6 +1,39 @@
 import { useState, useCallback } from 'react';
-import { GenerationRequest, GenerationState } from '../types';
-import { generate } from '../services/geminiService';
+import { GenerationRequest, GenerationResult, GenerationState, HistoryEntry } from '../types';
+import { generate, getSemanticSuggestions } from '../services/geminiService';
+import { saveGeneration, generateThumbnail } from '../services/telemetry';
+
+async function saveToHistory(result: GenerationResult): Promise<void> {
+  const thumb = await generateThumbnail(result.imageBase64, result.mimeType);
+
+  const colorDesc =
+    result.request.category === 'apparel' ? result.request.garment.colorDescription :
+      result.request.category === 'home' ? result.request.product.colorDescription :
+        result.request.product.colorDescription;
+
+  const entry: HistoryEntry = {
+    id: result.id,
+    timestamp: result.timestamp,
+    mode: result.request.mode,
+    category: result.request.category,
+    thumbnailBase64: thumb.base64,
+    thumbnailMime: thumb.mimeType,
+    qcScores: result.qcScores,
+    pixelQCScores: result.pixelQCScores,
+    compositeScore: result.compositeScore,
+    pass: result.qcPass,
+    issues: result.qcIssues,
+    riskProfile: result.riskProfile,
+    iterationCount: result.iterationCount ?? 1,
+    requestSummary: {
+      category: result.request.category,
+      mode: result.request.mode,
+      colorDescription: colorDesc,
+    },
+  };
+
+  await saveGeneration(entry);
+}
 
 export function useGeneration() {
   const [state, setState] = useState<GenerationState>({ status: 'idle' });
@@ -14,6 +47,10 @@ export function useGeneration() {
       });
 
       setState({ status: 'done', result });
+
+      // Fire-and-forget history save
+      saveToHistory(result).catch(console.warn);
+
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Generation failed';
@@ -21,10 +58,21 @@ export function useGeneration() {
       throw error;
     }
   }, []);
-
   const reset = useCallback(() => {
     setState({ status: 'idle' });
   }, []);
 
-  return { state, generateImage, reset };
+  const getSuggestions = useCallback(async (imageBase64: string, imageMimeType: string) => {
+    setState({ status: 'analyzing', progress: 'AI is reading your product details...' });
+    try {
+      const suggestions = await getSemanticSuggestions(imageBase64, imageMimeType);
+      setState(s => ({ ...s, status: 'idle', suggestions }));
+      return suggestions;
+    } catch (error) {
+      console.warn('Failed to get suggestions:', error);
+      setState(s => ({ ...s, status: 'idle' }));
+    }
+  }, []);
+
+  return { state, generateImage, reset, getSuggestions };
 }

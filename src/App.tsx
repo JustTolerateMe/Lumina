@@ -12,22 +12,49 @@ import { ScenePicker } from './components/controls/ScenePicker';
 import { RoomStylePicker } from './components/controls/RoomStylePicker';
 import { HardlinesContextPicker } from './components/controls/HardlinesContextPicker';
 import { CampaignPicker } from './components/controls/CampaignPicker';
+import { BrandProfilePicker } from './components/controls/BrandProfilePicker';
 import { GenerationCanvas } from './components/output/GenerationCanvas';
+import { GenerationHistory } from './components/output/GenerationHistory';
+import { useHistory } from './hooks/useHistory';
 import {
   ProductCategory, GenerationMode, ApparelMode, HomeMode, HardlinesMode,
   GarmentConfig, HomeProductConfig, HardlinesProductConfig,
   ModelConfig, LifestyleScene, HomeRoomStyle, HardlinesContext,
-  CampaignStyle, AspectRatio, ImageSize, GenerationRequest
+  CampaignStyle, AspectRatio, ImageSize, GenerationRequest, BrandProfile
 } from './types';
 import { Sparkles, Shirt, Home, Smartphone } from 'lucide-react';
+import { SecretBlueprint } from './components/SecretBlueprint';
 
 export default function App() {
-  const { state, generateImage, reset } = useGeneration();
+  const { state, generateImage, reset, getSuggestions } = useGeneration();
   const { image, handleFile, clear } = useUpload();
+  const { entries: historyEntries, loading: historyLoading, refresh: refreshHistory, clearHistory } = useHistory();
 
   // Category & Mode State
   const [category, setCategory] = useState<ProductCategory>('apparel');
   const [mode, setMode] = useState<GenerationMode>('studio');
+  const [showBlueprint, setShowBlueprint] = useState(false);
+  const [secretBuffer, setSecretBuffer] = useState('');
+
+  // Secret trigger: type 'blueprint' anytime
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const char = e.key.toLowerCase();
+      if (!/^[a-z]$/.test(char)) return;
+
+      setSecretBuffer(prev => {
+        const newBuffer = (prev + char).slice(-9); // 'blueprint' has 9 chars
+        if (newBuffer === 'blueprint') {
+          setShowBlueprint(true);
+          return '';
+        }
+        return newBuffer;
+      });
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Reset mode when category changes
   useEffect(() => {
@@ -35,6 +62,21 @@ export default function App() {
     else if (category === 'home') setMode('home-clean-cut');
     else if (category === 'hardlines') setMode('hardlines-clean-cut');
   }, [category]);
+
+  // Auto-analysis on image upload
+  useEffect(() => {
+    if (image?.base64 && state.status === 'idle' && !state.suggestions) {
+      getSuggestions(image.base64, image.mimeType).then(suggestions => {
+        if (suggestions?.category && suggestions.category !== category) {
+          setCategory(suggestions.category);
+        }
+      });
+    }
+    // Clear suggestions if image is cleared
+    if (!image && state.suggestions) {
+      reset(); // This resets the whole generation state including suggestions
+    }
+  }, [image, getSuggestions, category, state.status, state.suggestions, reset]);
 
   // Apparel State
   const [garment, setGarment] = useState<GarmentConfig>({
@@ -75,6 +117,7 @@ export default function App() {
   // Global State
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [imageSize] = useState<ImageSize>('2K');
+  const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
 
   const colorDesc = category === 'apparel' ? garment.colorDescription :
     category === 'home' ? homeProduct.colorDescription :
@@ -124,11 +167,18 @@ export default function App() {
     }
 
     await generateImage(request);
+    refreshHistory();
   }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <Header />
+      <Header>
+        <GenerationHistory
+          entries={historyEntries}
+          loading={historyLoading}
+          onClear={clearHistory}
+        />
+      </Header>
 
       <div className="flex h-[calc(100vh-64px)]">
         {/* LEFT PANEL — Controls */}
@@ -171,7 +221,11 @@ export default function App() {
           {/* Category-specific forms */}
           {category === 'apparel' && (
             <>
-              <GarmentForm value={garment} onChange={setGarment} />
+              <GarmentForm
+                value={garment}
+                onChange={setGarment}
+                suggestions={state.suggestions}
+              />
               <ModelPicker value={modelConfig} onChange={setModelConfig} />
               {mode === 'lifestyle' && <ScenePicker value={scene} onChange={setScene} />}
               {mode === 'campaign' && <CampaignPicker value={campaign} onChange={setCampaign} />}
@@ -180,14 +234,22 @@ export default function App() {
 
           {category === 'home' && (
             <>
-              <HomeProductForm value={homeProduct} onChange={setHomeProduct} />
+              <HomeProductForm
+                value={homeProduct}
+                onChange={setHomeProduct}
+                suggestions={state.suggestions}
+              />
               {mode !== 'home-clean-cut' && <RoomStylePicker value={roomStyle} onChange={setRoomStyle} />}
             </>
           )}
 
           {category === 'hardlines' && (
             <>
-              <HardlinesProductForm value={hardlinesProduct} onChange={setHardlinesProduct} />
+              <HardlinesProductForm
+                value={hardlinesProduct}
+                onChange={setHardlinesProduct}
+                suggestions={state.suggestions}
+              />
               {mode === 'hardlines-in-context' && <HardlinesContextPicker value={hardlinesContext} onChange={setHardlinesContext} />}
             </>
           )}
@@ -213,6 +275,8 @@ export default function App() {
               ))}
             </div>
           </div>
+
+          <BrandProfilePicker value={brandProfile} onChange={setBrandProfile} />
 
           {/* Generate Button */}
           <button
@@ -241,11 +305,15 @@ export default function App() {
           )}
         </aside>
 
-        {/* RIGHT PANEL — Output Canvas */}
         <main className="flex-1 overflow-hidden">
           <GenerationCanvas state={state} onReset={reset} />
         </main>
       </div>
+
+      <SecretBlueprint
+        isOpen={showBlueprint}
+        onClose={() => setShowBlueprint(false)}
+      />
     </div>
   );
 }
