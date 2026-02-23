@@ -4,8 +4,8 @@ import { HOME_ROOM_STYLE_PRESETS, PRODUCT_FINISH_DESCRIPTIONS, PRODUCT_MATERIAL_
 export function buildHomeLifestyleVignettePrompt(req: HomeGenerationRequest): string {
     const { product, roomStyle } = req;
     const style = HOME_ROOM_STYLE_PRESETS[roomStyle ?? 'minimalist'];
-    const finishDesc = PRODUCT_FINISH_DESCRIPTIONS[product.finish];
-    const materialDesc = PRODUCT_MATERIAL_DESCRIPTIONS[product.material];
+    const finishDesc = (PRODUCT_FINISH_DESCRIPTIONS as any)[product.finish] || product.finish;
+    const materialDesc = (PRODUCT_MATERIAL_DESCRIPTIONS as any)[product.material] || product.material;
 
     return `A close-up, styled lifestyle vignette photograph of the product shown in the reference image.
 

@@ -1,4 +1,4 @@
-import { HardlinesProductConfig, HardlinesProductType, ProductMaterial, ProductFinish, ProductSuggestions } from '../../types';
+import { HardlinesProductConfig, HardlinesProductType, ProductSuggestions } from '../../types';
 import { Wand2 } from 'lucide-react';
 
 interface Props {

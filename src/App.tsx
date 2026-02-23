@@ -34,7 +34,7 @@ export default function App() {
   const [category, setCategory] = useState<ProductCategory>('apparel');
   const [mode, setMode] = useState<GenerationMode>('studio');
   const [showBlueprint, setShowBlueprint] = useState(false);
-  const [secretBuffer, setSecretBuffer] = useState('');
+  const [, setSecretBuffer] = useState('');
 
   // Secret trigger: type 'blueprint' anytime
   useEffect(() => {
