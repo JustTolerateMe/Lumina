@@ -29,6 +29,7 @@ import { buildProductAnalysisPrompt } from '../prompts/productAnalysisPrompt';
 import { buildProductQualityCheckPrompt } from '../prompts/productQualityCheckPrompt';
 import { buildRiskAnalysisPrompt } from '../prompts/riskAnalysisPrompt';
 import { computePixelQC } from './pixelQC';
+import { buildEditPrompt } from '../prompts/editPrompt';
 
 const getApiKey = () => import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -105,6 +106,24 @@ function cleanJson(text: string): string {
   return text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 }
 
+function buildContentParts(
+  prompt: string,
+  req: { sourceImageBase64: string; sourceImageMimeType: string; additionalImages?: { base64: string; mimeType: string; label?: string }[] }
+): Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> {
+  const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
+    { text: prompt },
+    { inlineData: { mimeType: req.sourceImageMimeType, data: req.sourceImageBase64 } },
+  ];
+
+  if (req.additionalImages && req.additionalImages.length > 0) {
+    for (const img of req.additionalImages) {
+      parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+    }
+  }
+
+  return parts;
+}
+
 // ── Helper: validate config against analysis (Safety Valve) ──────────
 
 function validateConfig(req: GenerationRequest, analysisJson: string): { severity: 'low' | 'high'; message: string } | undefined {
@@ -144,16 +163,22 @@ function applyRepetition(instruction: string): string {
 
 async function analyzeProduct(
   imageBase64: string,
-  imageMimeType: string
+  imageMimeType: string,
+  additionalImages?: { base64: string; mimeType: string; label?: string }[]
 ): Promise<string> {
+  const parts: Array<any> = [
+    { text: applyRepetition(buildProductAnalysisPrompt()) },
+    { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
+  ];
+  if (additionalImages) {
+    additionalImages.forEach(img => {
+      parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+    });
+  }
+
   const response = await getAI().models.generateContent({
     model: TEXT_MODEL,
-    contents: [{
-      parts: [
-        { text: applyRepetition(buildProductAnalysisPrompt()) },
-        { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
-      ],
-    }],
+    contents: [{ parts }],
     config: { responseModalities: ['TEXT'] },
   });
 
@@ -287,16 +312,22 @@ async function verifyProduct(
 
 async function analyzeGarment(
   imageBase64: string,
-  imageMimeType: string
+  imageMimeType: string,
+  additionalImages?: { base64: string; mimeType: string; label?: string }[]
 ): Promise<string> {
+  const parts: Array<any> = [
+    { text: applyRepetition(buildGarmentAnalysisPrompt()) },
+    { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
+  ];
+  if (additionalImages) {
+    additionalImages.forEach(img => {
+      parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+    });
+  }
+
   const response = await getAI().models.generateContent({
     model: TEXT_MODEL,
-    contents: [{
-      parts: [
-        { text: applyRepetition(buildGarmentAnalysisPrompt()) },
-        { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
-      ],
-    }],
+    contents: [{ parts }],
     config: { responseModalities: ['TEXT'] },
   });
 
@@ -351,71 +382,7 @@ async function checkGarmentQuality(
 
 // ── Targeted retry constraint builder ────────────────────────────────
 
-function buildTargetedRetryConstraints(qc: QCResult): string {
-  const constraints: string[] = [];
-  const s = qc.scores;
-
-  if ('configurationMatch' in s && s.configurationMatch < 8) {
-    constraints.push(
-      'CRITICAL FIX — CONFIGURATION: The product configuration/layout is WRONG. ' +
-      'Match the EXACT shape, direction, and arrangement from the reference. Do not reinterpret the layout.'
-    );
-  }
-  if ('componentCount' in s && s.componentCount < 7) {
-    constraints.push(
-      'CRITICAL FIX — COMPONENT COUNT: Components are missing or extra. ' +
-      'Cross-reference the component inventory and ensure every listed part is present at the exact count.'
-    );
-  }
-  if (s.colorAccuracy < 7) {
-    constraints.push(
-      'CRITICAL FIX — COLOR: The product color has shifted. ' +
-      'Match the EXACT hue, saturation, and tone from the reference image. No color grading on the product.'
-    );
-  }
-  if ('proportionFidelity' in s && s.proportionFidelity < 7) {
-    constraints.push(
-      'CRITICAL FIX — PROPORTIONS: Relative proportions between product sections are wrong. ' +
-      'Preserve exact dimensional ratios from the reference.'
-    );
-  }
-  if ('constructionDetails' in s && s.constructionDetails < 7) {
-    constraints.push(
-      'CRITICAL FIX — CONSTRUCTION: Joints, seams, hardware, or structural details are missing. ' +
-      'Preserve every construction detail visible in the reference.'
-    );
-  }
-  if ('brandingPreservation' in s && s.brandingPreservation < 7) {
-    constraints.push(
-      'CRITICAL FIX — BRANDING: Logos/text/labels are missing, distorted, or repositioned. ' +
-      'Reproduce branding with pixel-level accuracy at the exact position and size.'
-    );
-  }
-  if ('graphicPreservation' in s && s.graphicPreservation < 7) {
-    constraints.push(
-      'CRITICAL FIX — GRAPHICS: Garment graphics/prints are distorted or missing. ' +
-      'Reproduce them exactly as in the reference — same position, size, and design.'
-    );
-  }
-  if ('silhouetteMatch' in s && s.silhouetteMatch < 7) {
-    constraints.push(
-      'CRITICAL FIX — SILHOUETTE: The garment silhouette does not match. ' +
-      'Sleeve length, hem position, and neckline must match the reference exactly.'
-    );
-  }
-  if ('textureMatch' in s && s.textureMatch < 7) {
-    constraints.push(
-      'CRITICAL FIX — TEXTURE: The fabric/material texture appearance is wrong. ' +
-      'Match the visual texture characteristics from the reference image.'
-    );
-  }
-
-  if (qc.issues.length > 0) {
-    constraints.push(`SPECIFIC ISSUES TO FIX:\n${qc.issues.map((i: string) => `- ${i}`).join('\n')}`);
-  }
-
-  return constraints.join('\n\n');
-}
+// buildTargetedRetryConstraints removed
 
 // ── Composite score calculation ──────────────────────────────────────
 
@@ -454,7 +421,8 @@ async function generateOnFigure(
   onProgress('Analyzing garment details...');
   const analysisJson = await analyzeGarment(
     req.sourceImageBase64,
-    req.sourceImageMimeType
+    req.sourceImageMimeType,
+    req.additionalImages
   );
 
   // Step 2: Risk analysis & Safety Valve
@@ -465,15 +433,19 @@ async function generateOnFigure(
   // Step 3: Generate with analysis + risk constraints
   onProgress('Placing garment on model...');
   const basePrompt = buildOnFigurePrompt(req, analysisJson);
-  const prompt = basePrompt + buildRiskConstraints(riskProfile);
+  let imageLabel = '';
+  if (req.additionalImages && req.additionalImages.length > 0) {
+    imageLabel = `\n\nMULTIPLE REFERENCE IMAGES PROVIDED:
+- Image 1 (primary): Front/main view of the product
+${req.additionalImages.map((img, i) => `- Image ${i + 2}${img.label ? ` (${img.label})` : ''}: Additional reference angle`).join('\n')}
+Use ALL reference images to ensure maximum fidelity. Every detail visible in any reference must be preserved.`;
+  }
+  const prompt = basePrompt + buildRiskConstraints(riskProfile) + imageLabel;
 
   const generateResponse = await getAI().models.generateContent({
     model: IMAGE_MODEL,
     contents: [{
-      parts: [
-        { text: prompt },
-        { inlineData: { mimeType: req.sourceImageMimeType, data: req.sourceImageBase64 } },
-      ],
+      parts: buildContentParts(prompt, req),
     }],
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
@@ -499,22 +471,28 @@ async function generateOnFigure(
   );
 
   // Step 5: Targeted retry if QC fails
+  let finalQc = qc;
   if (!qc.pass && qc.issues.length > 0) {
     iterationCount = 2;
     const failedDimension = qc.issues[0] ?? 'quality issues';
     onProgress(`Refining: fixing ${failedDimension}...`);
 
-    const targetedConstraints = buildTargetedRetryConstraints(qc);
-    const retryPrompt = `${prompt}\n\nQUALITY CONTROL FEEDBACK — TARGETED FIXES REQUIRED:\n${targetedConstraints}`;
+    const editPrompt = buildEditPrompt(qc, analysisJson, prompt);
+
+    const editParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
+      { text: editPrompt },
+      { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
+      { inlineData: { mimeType: req.sourceImageMimeType, data: req.sourceImageBase64 } },
+    ];
+    if (req.additionalImages && req.additionalImages.length > 0) {
+      for (const img of req.additionalImages) {
+        editParts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+      }
+    }
 
     const retryResponse = await getAI().models.generateContent({
       model: IMAGE_MODEL,
-      contents: [{
-        parts: [
-          { text: retryPrompt },
-          { inlineData: { mimeType: req.sourceImageMimeType, data: req.sourceImageBase64 } },
-        ],
-      }],
+      contents: [{ parts: editParts }],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseModalities: ['TEXT', 'IMAGE'],
@@ -529,6 +507,13 @@ async function generateOnFigure(
       generatedBase64 = retryPart.inlineData.data ?? '';
       generatedMime = retryPart.inlineData.mimeType ?? 'image/png';
     }
+
+    onProgress('Re-checking edited image...');
+    finalQc = await checkGarmentQuality(
+      req.sourceImageBase64, req.sourceImageMimeType,
+      generatedBase64, generatedMime,
+      analysisJson
+    );
   }
 
   // Step 6: Pixel QC
@@ -539,7 +524,7 @@ async function generateOnFigure(
   );
 
   const compositeScore = computeCompositeScore(
-    qc.scores,
+    finalQc.scores,
     pixelQCScores,
     req.mode
   );
@@ -552,9 +537,9 @@ async function generateOnFigure(
     timestamp: Date.now(),
     analysisText: analysisJson,
     riskProfile,
-    qcScores: qc.scores,
-    qcPass: qc.pass,
-    qcIssues: qc.issues,
+    qcScores: finalQc.scores,
+    qcPass: finalQc.pass,
+    qcIssues: finalQc.issues,
     pixelQCScores,
     compositeScore,
     iterationCount,
@@ -578,7 +563,8 @@ export async function generate(
   onProgress('Analyzing product details...');
   const analysisJson = await analyzeProduct(
     req.sourceImageBase64,
-    req.sourceImageMimeType
+    req.sourceImageMimeType,
+    req.additionalImages
   );
 
   // Step 2: Risk analysis & Safety Valve
@@ -594,23 +580,28 @@ export async function generate(
       req.product.customInstructions;
 
   const modePrompt = buildPrompt(req);
+  let imageLabel = '';
+  if (req.additionalImages && req.additionalImages.length > 0) {
+    imageLabel = `\n\nMULTIPLE REFERENCE IMAGES PROVIDED:
+- Image 1 (primary): Front/main view of the product
+${req.additionalImages.map((img, i) => `- Image ${i + 2}${img.label ? ` (${img.label})` : ''}: Additional reference angle`).join('\n')}
+Use ALL reference images to ensure maximum fidelity. Every detail visible in any reference must be preserved.`;
+  }
+
   const prompt = `${modePrompt}
 
 PRODUCT ANALYSIS (verified ground truth extracted from the reference image — do not deviate from this):
 ${analysisJson}
 
 ${customInstructions ? `STYLING NOTES / CUSTOM INSTRUCTIONS:\n${customInstructions}\n` : ''}\
-REFERENCE IMAGE: Attached. The analysis above was extracted from this reference.
+REFERENCE IMAGE: Attached. The analysis above was extracted from this reference.${imageLabel}
 If any discrepancy between analysis text and the image, the image is the source of truth.
 Use this analysis as a checklist: every detail listed must be preserved in the output.${buildRiskConstraints(riskProfile)}`;
 
   const generateResponse = await getAI().models.generateContent({
     model: IMAGE_MODEL,
     contents: [{
-      parts: [
-        { text: prompt },
-        { inlineData: { mimeType: req.sourceImageMimeType, data: req.sourceImageBase64 } },
-      ],
+      parts: buildContentParts(prompt, req),
     }],
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
@@ -636,22 +627,28 @@ Use this analysis as a checklist: every detail listed must be preserved in the o
   );
 
   // Step 5: Targeted retry if QC fails
+  let finalQc = qc;
   if (!qc.pass && qc.issues.length > 0) {
     iterationCount = 2;
     const failedDimension = qc.issues[0] ?? 'quality issues';
     onProgress(`Auto-refining: fixing ${failedDimension}...`);
 
-    const targetedConstraints = buildTargetedRetryConstraints(qc);
-    const retryPrompt = `${prompt}\n\nQUALITY CONTROL FEEDBACK — TARGETED FIXES REQUIRED:\n${targetedConstraints}`;
+    const editPrompt = buildEditPrompt(qc, analysisJson, prompt);
+
+    const editParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
+      { text: editPrompt },
+      { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
+      { inlineData: { mimeType: req.sourceImageMimeType, data: req.sourceImageBase64 } },
+    ];
+    if (req.additionalImages && req.additionalImages.length > 0) {
+      for (const img of req.additionalImages) {
+        editParts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+      }
+    }
 
     const retryResponse = await getAI().models.generateContent({
       model: IMAGE_MODEL,
-      contents: [{
-        parts: [
-          { text: retryPrompt },
-          { inlineData: { mimeType: req.sourceImageMimeType, data: req.sourceImageBase64 } },
-        ],
-      }],
+      contents: [{ parts: editParts }],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseModalities: ['TEXT', 'IMAGE'],
@@ -666,6 +663,13 @@ Use this analysis as a checklist: every detail listed must be preserved in the o
       generatedBase64 = retryPart.inlineData.data ?? '';
       generatedMime = retryPart.inlineData.mimeType ?? 'image/png';
     }
+
+    onProgress('Re-checking edited product...');
+    finalQc = await verifyProduct(
+      req.sourceImageBase64, req.sourceImageMimeType,
+      generatedBase64, generatedMime,
+      analysisJson
+    );
   }
 
   // Step 6: Pixel QC
@@ -676,7 +680,7 @@ Use this analysis as a checklist: every detail listed must be preserved in the o
   );
 
   const compositeScore = computeCompositeScore(
-    qc.scores,
+    finalQc.scores,
     pixelQCScores,
     req.mode
   );
@@ -689,12 +693,105 @@ Use this analysis as a checklist: every detail listed must be preserved in the o
     timestamp: Date.now(),
     analysisText: analysisJson,
     riskProfile,
-    qcScores: qc.scores,
-    qcPass: qc.pass,
-    qcIssues: qc.issues,
+    qcScores: finalQc.scores,
+    qcPass: finalQc.pass,
+    qcIssues: finalQc.issues,
     pixelQCScores,
     compositeScore,
     iterationCount,
     validationWarning,
+  };
+}
+
+// ── Manual Edit / Inpainting Pipeline ────────────────────────────────
+
+export async function manualInpaint(
+  req: import('../types').ManualEditRequest,
+  onProgress: (step: string) => void = () => { }
+): Promise<GenerationResult> {
+  onProgress('Preparing masked edit...');
+
+  // The model supports native image editing if provided an original and a mask mask.
+  const inpaintPrompt = `You are an expert AI photo retoucher. 
+I am providing you three images in this exact order:
+1. [IMAGE 1]: A black-and-white MASK image. White areas are where you MUST make changes. Black areas MUST remain mathematically identical to the base image.
+2. [IMAGE 2]: The base image to be edited.
+3. [IMAGE 3]: The original reference photo (for context).
+
+INSTRUCTION: ${req.instruction}
+
+CRITICAL RULES:
+1. Do NOT modify any pixels outside the white mask area. They must be locked.
+2. Ensure the lighting, shadows, and textures in the edited area blend seamlessly with the unedited areas.
+3. Do not apply any global filter, color grade, or background modifications outside the mask.
+4. Base your edits on the instruction, but lock everything else.`;
+
+  const editParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
+    { text: inpaintPrompt },
+    { inlineData: { mimeType: 'image/png', data: req.maskImageBase64 } }, // Mask MUST be the first image for spatial recognition
+    { inlineData: { mimeType: req.generatedImageMimeType, data: req.generatedImageBase64 } },
+    { inlineData: { mimeType: req.originalRequest.sourceImageMimeType, data: req.originalRequest.sourceImageBase64 } },
+  ];
+
+  if (req.originalRequest.additionalImages && req.originalRequest.additionalImages.length > 0) {
+    for (const img of req.originalRequest.additionalImages) {
+      editParts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+    }
+  }
+
+  onProgress('Applying edits...');
+  const editResponse = await getAI().models.generateContent({
+    model: IMAGE_MODEL,
+    contents: [{ parts: editParts }],
+    config: {
+      systemInstruction: SYSTEM_INSTRUCTION,
+      responseModalities: ['TEXT', 'IMAGE'],
+    },
+  });
+
+  const editedPart = editResponse.candidates?.[0]?.content?.parts?.find(
+    (p: any) => p.inlineData?.mimeType?.startsWith('image/')
+  );
+
+  if (!editedPart?.inlineData) throw new Error('Edit failed.');
+
+  const finalBase64 = editedPart.inlineData.data ?? '';
+  const finalMime = editedPart.inlineData.mimeType ?? 'image/png';
+
+  onProgress('Verifying edit fidelity...');
+
+  // Rerun QC to ensure the new image is scored correctly
+  // We skip Garment vs Product check here and just use the universal verifyProduct
+  const newQc = await verifyProduct(
+    req.originalRequest.sourceImageBase64, req.originalRequest.sourceImageMimeType,
+    finalBase64, finalMime,
+    "{}" // Empty summary check because it's a manual override
+  );
+
+  const pixelQCScores = await computePixelQC(
+    req.originalRequest.sourceImageBase64, req.originalRequest.sourceImageMimeType,
+    finalBase64, finalMime
+  );
+
+  const compositeScore = computeCompositeScore(
+    newQc.scores,
+    pixelQCScores,
+    req.originalRequest.mode
+  );
+
+  return {
+    id: crypto.randomUUID(),
+    imageBase64: finalBase64,
+    mimeType: finalMime,
+    request: req.originalRequest,
+    timestamp: Date.now(),
+    analysisText: 'Manual Edit Override',
+    riskProfile: { flags: [], descriptions: {}, constraintOverrides: [] },
+    qcScores: newQc.scores,
+    qcPass: newQc.pass,
+    qcIssues: newQc.issues,
+    pixelQCScores,
+    compositeScore,
+    iterationCount: 1, // Manual edit doesn't count towards auto-iterations
   };
 }

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { GenerationRequest, GenerationResult, GenerationState, HistoryEntry } from '../types';
-import { generate, getSemanticSuggestions } from '../services/geminiService';
+import { generate, getSemanticSuggestions, manualInpaint } from '../services/geminiService';
 import { saveGeneration, generateThumbnail } from '../services/telemetry';
 
 async function saveToHistory(result: GenerationResult): Promise<void> {
@@ -58,6 +58,39 @@ export function useGeneration() {
       throw error;
     }
   }, []);
+
+  const applyManualEdit = useCallback(async (maskBase64: string, instruction: string) => {
+    if (state.status !== 'done' || !state.result) return;
+
+    // Create the manual edit payload
+    const req = {
+      originalRequest: state.result.request,
+      generatedImageBase64: state.result.imageBase64,
+      generatedImageMimeType: state.result.mimeType,
+      maskImageBase64: maskBase64,
+      instruction
+    };
+
+    setState({ status: 'generating', progress: 'Preparing manual edit...' });
+
+    try {
+      const result = await manualInpaint(req, (progress) => {
+        setState((s) => ({ ...s, progress }));
+      });
+
+      setState({ status: 'done', result });
+
+      // Save new variation to history
+      saveToHistory(result).catch(console.warn);
+
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Modification failed';
+      setState({ status: 'error', error: message });
+      throw error;
+    }
+  }, [state]);
+
   const reset = useCallback(() => {
     setState({ status: 'idle' });
   }, []);
@@ -74,5 +107,5 @@ export function useGeneration() {
     }
   }, []);
 
-  return { state, generateImage, reset, getSuggestions };
+  return { state, generateImage, reset, getSuggestions, applyManualEdit };
 }

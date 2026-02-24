@@ -1,5 +1,6 @@
 import { ApparelGenerationRequest } from '../types';
-import { LIFESTYLE_SCENE_PRESETS, MODEL_POSE_PRESETS, SKIN_TONE_DESCRIPTIONS } from './presets';
+import { LIFESTYLE_SCENE_PRESETS, MODEL_POSE_PRESETS, SKIN_TONE_DESCRIPTIONS, AGE_GROUP_PRESETS } from './presets';
+import { buildRealismBlock } from './realismDirectives';
 
 export function buildLifestylePrompt(req: ApparelGenerationRequest): string {
   const { garment, model, scene } = req;
@@ -14,10 +15,11 @@ ${garment.material} fabric, ${garment.fit} fit.
 ${garment.hasLogo ? `Logo/graphic present: ${garment.logoDescription} — must be reproduced exactly.` : ''}
 
 MODEL:
-${model.gender} model, ${SKIN_TONE_DESCRIPTIONS[model.skinTone]}.
+${model.gender} model, ${AGE_GROUP_PRESETS[model.ageGroup ?? 'adult'].description}, \
+${SKIN_TONE_DESCRIPTIONS[model.skinTone]}.
 Pose: ${MODEL_POSE_PRESETS[model.pose]}.
 Natural, authentic expression — genuine and approachable, not rigidly posed.
-Professional fashion model proportions.
+${AGE_GROUP_PRESETS[model.ageGroup ?? 'adult'].proportionNote}.
 
 SCENE: ${scenePreset.label}
 Setting: ${scenePreset.sceneDescription}
@@ -41,6 +43,8 @@ Shot: ${scenePreset.shotType}
 Depth of field: ${scenePreset.dof}
 Color grading: ${scenePreset.colorGrade}
 Composition: Rule of thirds. Model positioned to showcase garment fully.
+
+${buildRealismBlock('lifestyle', model.ageGroup ?? 'adult')}
 
 Professional commercial lifestyle fashion photography quality.`;
 }

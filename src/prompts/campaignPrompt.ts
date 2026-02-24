@@ -1,5 +1,6 @@
 import { ApparelGenerationRequest } from '../types';
-import { CAMPAIGN_PRESETS, SKIN_TONE_DESCRIPTIONS } from './presets';
+import { CAMPAIGN_PRESETS, SKIN_TONE_DESCRIPTIONS, AGE_GROUP_PRESETS } from './presets';
+import { buildRealismBlock } from './realismDirectives';
 
 export function buildCampaignPrompt(req: ApparelGenerationRequest): string {
   const { garment, model, campaign } = req;
@@ -17,8 +18,10 @@ ${garment.hasLogo ? `Logo/graphic: ${garment.logoDescription} — reproduce with
 Fit: ${garment.fit}.
 
 MODEL:
-${model.gender} model, ${SKIN_TONE_DESCRIPTIONS[model.skinTone]}.
+${model.gender} model, ${AGE_GROUP_PRESETS[model.ageGroup ?? 'adult'].description}, \
+${SKIN_TONE_DESCRIPTIONS[model.skinTone]}.
 Pose: ${preset.poseDescription}
+${AGE_GROUP_PRESETS[model.ageGroup ?? 'adult'].proportionNote}.
 
 PHOTOGRAPHY:
 ${preset.photographyDescription}
@@ -30,6 +33,8 @@ GARMENT PRESERVATION — NON-NEGOTIABLE:
 - The garment is the hero despite the dramatic lighting and composition
 
 MOOD: ${preset.moodDescription}
+
+${buildRealismBlock('campaign', model.ageGroup ?? 'adult')}
 
 Premium fashion campaign photography quality. Magazine and advertising ready.`;
 }

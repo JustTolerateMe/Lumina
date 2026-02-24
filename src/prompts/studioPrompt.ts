@@ -1,5 +1,6 @@
 import { ApparelGenerationRequest } from '../types';
-import { MODEL_POSE_PRESETS, SKIN_TONE_DESCRIPTIONS } from './presets';
+import { MODEL_POSE_PRESETS, SKIN_TONE_DESCRIPTIONS, AGE_GROUP_PRESETS } from './presets';
+import { buildRealismBlock } from './realismDirectives';
 
 export function buildStudioPrompt(req: ApparelGenerationRequest): string {
   const { garment, model } = req;
@@ -13,10 +14,11 @@ made from ${garment.material} fabric. Fit category: ${garment.fit}.
 ${garment.hasLogo ? `IMPORTANT: This garment has a logo/graphic: ${garment.logoDescription}. This must be reproduced exactly.` : ''}
 
 MODEL PLACEMENT:
-Place this exact garment on a ${model.gender} model with ${SKIN_TONE_DESCRIPTIONS[model.skinTone]}, \
+Place this exact garment on a ${model.gender} model (${AGE_GROUP_PRESETS[model.ageGroup ?? 'adult'].description}) \
+with ${SKIN_TONE_DESCRIPTIONS[model.skinTone]}, \
 ${MODEL_POSE_PRESETS[model.pose]}. \
-The model should have natural, professional fashion model proportions and a \
-neutral, clean expression.
+${AGE_GROUP_PRESETS[model.ageGroup ?? 'adult'].proportionNote}. \
+Natural, clean expression.
 
 GARMENT PRESERVATION — NON-NEGOTIABLE:
 - The garment color must exactly match the reference image: ${garment.colorDescription}
@@ -36,6 +38,8 @@ no blown-out highlights
 - Framing: Full body visible, from top of head to ankle, centered in frame
 - No props, no accessories, no environmental elements
 - Ultra-sharp focus throughout, especially on garment surface details
+
+${buildRealismBlock('studio', model.ageGroup ?? 'adult')}
 
 OUTPUT SPECIFICATION:
 Commercial retail e-commerce photography quality. \

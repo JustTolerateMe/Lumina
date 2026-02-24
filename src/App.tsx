@@ -26,8 +26,16 @@ import { Sparkles, Shirt, Home, Smartphone } from 'lucide-react';
 import { SecretBlueprint } from './components/SecretBlueprint';
 
 export default function App() {
-  const { state, generateImage, reset, getSuggestions } = useGeneration();
-  const { image, handleFile, clear } = useUpload();
+  const { state, generateImage, reset, getSuggestions, applyManualEdit } = useGeneration();
+  const {
+    image,
+    additionalImages,
+    handleFile,
+    handleAdditionalFile,
+    removeAdditionalImage,
+    updateAdditionalImageLabel,
+    clear
+  } = useUpload();
   const { entries: historyEntries, loading: historyLoading, refresh: refreshHistory, clearHistory } = useHistory();
 
   // Category & Mode State
@@ -87,6 +95,7 @@ export default function App() {
     fit: 'regular',
   });
   const [modelConfig, setModelConfig] = useState<ModelConfig>({
+    ageGroup: 'adult',
     gender: 'female',
     skinTone: 'medium',
     pose: 'standing_straight',
@@ -136,6 +145,11 @@ export default function App() {
       imageSize,
       sourceImageBase64: image.base64,
       sourceImageMimeType: image.mimeType,
+      additionalImages: additionalImages.map(img => ({
+        base64: img.base64,
+        mimeType: img.mimeType,
+        label: img.label,
+      })),
     };
 
     if (category === 'apparel') {
@@ -212,7 +226,11 @@ export default function App() {
 
           <UploadZone
             image={image}
+            additionalImages={additionalImages}
             onFile={handleFile}
+            onAdditionalFile={handleAdditionalFile}
+            onRemoveAdditional={removeAdditionalImage}
+            onUpdateLabel={updateAdditionalImageLabel}
             onClear={clear}
           />
 
@@ -306,7 +324,11 @@ export default function App() {
         </aside>
 
         <main className="flex-1 overflow-hidden">
-          <GenerationCanvas state={state} onReset={reset} />
+          <GenerationCanvas
+            state={state}
+            onReset={reset}
+            onManualEdit={applyManualEdit}
+          />
         </main>
       </div>
 

@@ -1,5 +1,6 @@
 import { ApparelGenerationRequest } from '../types';
-import { MODEL_POSE_PRESETS, SKIN_TONE_DESCRIPTIONS } from './presets';
+import { MODEL_POSE_PRESETS, SKIN_TONE_DESCRIPTIONS, AGE_GROUP_PRESETS } from './presets';
+import { buildRealismBlock } from './realismDirectives';
 
 export function buildAnalysisPrompt(): string {
   return `Analyze the garment in this image and provide a precise technical \
@@ -62,10 +63,11 @@ REFERENCE IMAGE: Attached. Use as primary visual reference throughout. \
 The analysis above must match what you see. If any discrepancy, the image wins.
 
 MODEL SPECIFICATIONS:
+- Age group: ${AGE_GROUP_PRESETS[model.ageGroup ?? 'adult'].description}
 - Gender: ${model.gender}
 - Skin tone: ${SKIN_TONE_DESCRIPTIONS[model.skinTone]}
 - Pose: ${MODEL_POSE_PRESETS[model.pose]}
-- Proportions: professional fashion model, natural body proportions
+- Proportions: ${AGE_GROUP_PRESETS[model.ageGroup ?? 'adult'].proportionNote}
 
 PLACEMENT PHYSICS:
 The garment is a ${(analysis.garmentType as string) ?? 'garment'} with \
@@ -91,6 +93,8 @@ Lighting: Professional three-point studio — two softboxes 45° left/right, \
 soft frontal fill, no harsh shadows, no blown highlights
 Camera: 85mm portrait lens, straight-on view, full body head to ankle
 Sharp focus throughout. Commercial quality.
+
+${buildRealismBlock('studio', model.ageGroup ?? 'adult')}
 
 Produce a professional commercial on-figure fashion photograph that could \
 be published directly on a brand's product detail page.`;

@@ -1,14 +1,22 @@
-import { Download, RotateCcw, Sparkles, AlertTriangle } from 'lucide-react';
+import { useState } from 'react';
+import { Download, RotateCcw, Sparkles, AlertTriangle, Images, Image as ImageIcon, Paintbrush } from 'lucide-react';
 import { GenerationState } from '../../types';
 import { downloadImage } from '../../services/imageUtils';
 import { FidelityPanel } from './FidelityPanel';
+import { BeforeAfterSlider } from './BeforeAfterSlider';
+import { InpaintCanvas } from './InpaintCanvas';
+import { EditToolbar } from './EditToolbar';
 
 interface Props {
   state: GenerationState;
   onReset: () => void;
+  onManualEdit?: (maskBase64: string, instruction: string) => void;
 }
 
-export function GenerationCanvas({ state, onReset }: Props) {
+export function GenerationCanvas({ state, onReset, onManualEdit }: Props) {
+  const [viewMode, setViewMode] = useState<'static' | 'compare'>('static');
+  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [currentMask, setCurrentMask] = useState<string | null>(null);
 
   function handleDownload() {
     if (!state.result) return;
@@ -73,7 +81,7 @@ export function GenerationCanvas({ state, onReset }: Props) {
   if (state.status === 'done' && state.result) {
     const r = state.result;
     return (
-      <div className="h-full flex flex-col">
+      <div className="h-full flex flex-col overflow-y-auto">
         {/* Toolbar */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
           <p className="text-sm text-zinc-400">
@@ -89,8 +97,30 @@ export function GenerationCanvas({ state, onReset }: Props) {
               New
             </button>
             <button
+              onClick={() => {
+                setViewMode(v => v === 'static' ? 'compare' : 'static');
+                setIsDrawingMode(false);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${viewMode === 'compare' ? 'bg-violet-600 hover:bg-violet-500' : 'bg-zinc-800 hover:bg-zinc-700'}`}
+              title="Compare with Original"
+            >
+              {viewMode === 'compare' ? <Images size={13} /> : <ImageIcon size={13} />}
+              Compare
+            </button>
+            <button
+              onClick={() => {
+                setIsDrawingMode(d => !d);
+                if (viewMode === 'compare') setViewMode('static');
+              }}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${isDrawingMode ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-zinc-800 hover:bg-zinc-700'}`}
+              title="Manual Edit"
+            >
+              <Paintbrush size={13} />
+              {isDrawingMode ? 'Cancel Edit' : 'Edit'}
+            </button>
+            <button
               onClick={handleDownload}
-              className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 rounded-lg
+              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg
                 text-sm font-medium transition-colors flex items-center gap-1.5"
             >
               <Download size={13} />
@@ -110,12 +140,34 @@ export function GenerationCanvas({ state, onReset }: Props) {
           </div>
         )}
 
-        {/* Image */}
-        <div className="flex-1 flex items-center justify-center p-6 overflow-auto">
-          <img
-            src={`data:${r.mimeType};base64,${r.imageBase64}`}
-            alt="Generated product photo"
-            className="max-h-full max-w-full object-contain rounded-xl shadow-2xl"
+        {/* Image Display */}
+        <div className="flex-1 flex items-center justify-center p-6 min-h-[400px] relative">
+          {viewMode === 'compare' ? (
+            <BeforeAfterSlider
+              beforeImage={`data:${r.request.sourceImageMimeType};base64,${r.request.sourceImageBase64}`}
+              afterImage={`data:${r.mimeType};base64,${r.imageBase64}`}
+            />
+          ) : (
+            <InpaintCanvas
+              key={r.id}
+              imageSrc={`data:${r.mimeType};base64,${r.imageBase64}`}
+              isDrawingMode={isDrawingMode}
+              onMaskChange={setCurrentMask}
+            />
+          )}
+
+          <EditToolbar
+            isDrawingMode={isDrawingMode}
+            hasMask={!!currentMask}
+            onCancel={() => setIsDrawingMode(false)}
+            onApply={(instruction) => {
+              if (currentMask && onManualEdit) {
+                console.log("Submitting Mask for Edit. Instruction:", instruction);
+                onManualEdit(currentMask, instruction);
+                setCurrentMask(null);
+                setIsDrawingMode(false);
+              }
+            }}
           />
         </div>
 

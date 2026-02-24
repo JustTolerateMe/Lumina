@@ -8,7 +8,12 @@ export type GenerationMode = ApparelMode | HomeMode | HardlinesMode;
 
 export type Gender = 'female' | 'male' | 'unisex';
 
-export type SkinTone = 'fair' | 'light' | 'medium' | 'tan' | 'deep';
+export type AgeGroup = 'infant' | 'toddler' | 'child' | 'teen' | 'adult';
+
+export type SkinTone =
+  | 'porcelain' | 'fair' | 'light' | 'light-medium'
+  | 'medium' | 'medium-tan' | 'tan' | 'deep-tan'
+  | 'deep' | 'rich-dark';
 
 export type GarmentType =
   | 't-shirt' | 'hoodie' | 'sweatshirt' | 'jacket' | 'coat'
@@ -50,7 +55,8 @@ export type CampaignStyle =
   | 'minimalist_luxury' | 'street_energy' | 'neon_tech' | 'organic_natural';
 
 export type ModelPose =
-  | 'standing_straight' | 'relaxed' | 'hands_on_hips' | 'walking' | 'editorial';
+  | 'standing_straight' | 'relaxed' | 'hands_on_hips' | 'walking' | 'editorial'
+  | 'sitting' | 'playful' | 'crawling' | 'held_by_parent';
 
 export interface GarmentConfig {
   type: GarmentType;
@@ -85,9 +91,16 @@ export interface HardlinesProductConfig {
 }
 
 export interface ModelConfig {
+  ageGroup: AgeGroup;
   gender: Gender;
   skinTone: SkinTone;
   pose: ModelPose;
+}
+
+export interface AdditionalImage {
+  base64: string;
+  mimeType: string;
+  label?: string; // 'back', 'detail', 'logo_closeup', etc.
 }
 
 export interface BaseGenerationRequest {
@@ -95,6 +108,7 @@ export interface BaseGenerationRequest {
   imageSize: ImageSize;
   sourceImageBase64: string;
   sourceImageMimeType: string;
+  additionalImages?: AdditionalImage[];
   customInstructions?: string;
 }
 
@@ -125,6 +139,14 @@ export type GenerationRequest =
   | ApparelGenerationRequest
   | HomeGenerationRequest
   | HardlinesGenerationRequest;
+
+export interface ManualEditRequest {
+  originalRequest: GenerationRequest;
+  generatedImageBase64: string;
+  generatedImageMimeType: string;
+  maskImageBase64: string;
+  instruction: string;
+}
 
 // ── Risk Analysis ────────────────────────────────────────────────────
 

@@ -250,11 +250,16 @@ export const HARDLINES_CONTEXT_PRESETS = {
 } as const;
 
 export const SKIN_TONE_DESCRIPTIONS = {
-  fair: 'very fair skin tone, light complexion',
-  light: 'light skin tone, slightly warm undertones',
-  medium: 'medium skin tone, balanced warm undertones',
-  tan: 'tan skin tone, warm golden-brown complexion',
-  deep: 'deep rich skin tone, warm dark complexion',
+  porcelain: 'very pale porcelain skin tone, cool pink undertones, delicate translucent complexion',
+  fair: 'fair skin tone, light neutral complexion with subtle warmth',
+  light: 'light skin tone, slightly warm undertones, healthy natural glow',
+  'light-medium': 'light-medium skin tone, warm peach undertones',
+  medium: 'medium skin tone, balanced warm undertones, olive hints',
+  'medium-tan': 'medium-tan skin tone, warm golden undertones',
+  tan: 'tan skin tone, warm golden-brown complexion, sun-kissed warmth',
+  'deep-tan': 'deep tan skin tone, rich warm brown complexion',
+  deep: 'deep rich skin tone, warm dark complexion with bronze undertones',
+  'rich-dark': 'rich dark skin tone, deep espresso complexion, warm mahogany undertones',
 } as const;
 
 export const MODEL_POSE_PRESETS = {
@@ -263,6 +268,58 @@ export const MODEL_POSE_PRESETS = {
   hands_on_hips: 'hands resting on hips, confident posture, shoulders back, slightly forward-facing',
   walking: 'mid-stride walking pose, natural movement, one foot forward, arms in natural swing',
   editorial: 'strong editorial pose, angular and deliberate, fashion-forward body positioning',
+  sitting: 'seated naturally on a simple surface, relaxed posture, legs casually arranged, hands resting naturally',
+  playful: 'playful natural movement, spontaneous and joyful energy, age-appropriate active pose',
+  crawling: 'natural crawling position on hands and knees, looking forward with curiosity, weight evenly distributed',
+  held_by_parent: 'held securely by a parent or caregiver, comfortable and natural positioning, only the child wearing the garment',
+} as const;
+
+export const AGE_GROUP_PRESETS = {
+  infant: {
+    label: 'Infant',
+    ageRange: '0–12 months',
+    description: 'infant baby, approximately 0–12 months old, soft rounded features',
+    allowedPoses: ['held_by_parent', 'sitting', 'crawling'] as const,
+    allowedGenders: ['female', 'male', 'unisex'] as const,
+    defaultPose: 'held_by_parent' as const,
+    proportionNote: 'infant body proportions — large head relative to body, short soft limbs, rounded belly',
+  },
+  toddler: {
+    label: 'Toddler',
+    ageRange: '1–3 years',
+    description: 'toddler child, approximately 1–3 years old, rounded toddler features, small stature',
+    allowedPoses: ['standing_straight', 'sitting', 'playful', 'walking'] as const,
+    allowedGenders: ['female', 'male', 'unisex'] as const,
+    defaultPose: 'standing_straight' as const,
+    proportionNote: 'toddler body proportions — round face, short limbs, slight toddler belly, unsteady but upright',
+  },
+  child: {
+    label: 'Child',
+    ageRange: '4–12 years',
+    description: 'child, approximately 4–12 years old, youthful features, child proportions',
+    allowedPoses: ['standing_straight', 'relaxed', 'walking', 'sitting', 'playful'] as const,
+    allowedGenders: ['female', 'male', 'unisex'] as const,
+    defaultPose: 'relaxed' as const,
+    proportionNote: 'child body proportions — growing limbs, smaller frame, youthful face, natural energy',
+  },
+  teen: {
+    label: 'Teen',
+    ageRange: '13–17 years',
+    description: 'teenager, approximately 13–17 years old, adolescent features',
+    allowedPoses: ['standing_straight', 'relaxed', 'hands_on_hips', 'walking', 'sitting'] as const,
+    allowedGenders: ['female', 'male', 'unisex'] as const,
+    defaultPose: 'relaxed' as const,
+    proportionNote: 'adolescent body proportions — tall and lean, developing features, youthful appearance',
+  },
+  adult: {
+    label: 'Adult',
+    ageRange: '18+',
+    description: 'adult, professional fashion model',
+    allowedPoses: ['standing_straight', 'relaxed', 'hands_on_hips', 'walking', 'editorial', 'sitting'] as const,
+    allowedGenders: ['female', 'male'] as const,
+    defaultPose: 'standing_straight' as const,
+    proportionNote: 'professional fashion model, natural adult body proportions',
+  },
 } as const;
 
 export const LIFESTYLE_SCENE_PRESETS = {
