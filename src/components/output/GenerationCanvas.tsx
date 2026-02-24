@@ -141,34 +141,36 @@ export function GenerationCanvas({ state, onReset, onManualEdit }: Props) {
         )}
 
         {/* Image Display */}
-        <div className="flex-1 flex items-center justify-center p-6 min-h-[400px] relative">
-          {viewMode === 'compare' ? (
-            <BeforeAfterSlider
-              beforeImage={`data:${r.request.sourceImageMimeType};base64,${r.request.sourceImageBase64}`}
-              afterImage={`data:${r.mimeType};base64,${r.imageBase64}`}
-            />
-          ) : (
-            <InpaintCanvas
-              key={r.id}
-              imageSrc={`data:${r.mimeType};base64,${r.imageBase64}`}
-              isDrawingMode={isDrawingMode}
-              onMaskChange={setCurrentMask}
-            />
-          )}
+        <div className="flex-1 min-h-[400px] relative">
+          <div className="absolute inset-0 flex items-center justify-center p-6">
+            {viewMode === 'compare' ? (
+              <BeforeAfterSlider
+                beforeImage={`data:${r.request.sourceImageMimeType};base64,${r.request.sourceImageBase64}`}
+                afterImage={`data:${r.mimeType};base64,${r.imageBase64}`}
+              />
+            ) : (
+              <InpaintCanvas
+                key={r.id}
+                imageSrc={`data:${r.mimeType};base64,${r.imageBase64}`}
+                isDrawingMode={isDrawingMode}
+                onMaskChange={setCurrentMask}
+              />
+            )}
 
-          <EditToolbar
-            isDrawingMode={isDrawingMode}
-            hasMask={!!currentMask}
-            onCancel={() => setIsDrawingMode(false)}
-            onApply={(instruction) => {
-              if (currentMask && onManualEdit) {
-                console.log("Submitting Mask for Edit. Instruction:", instruction);
-                onManualEdit(currentMask, instruction);
-                setCurrentMask(null);
-                setIsDrawingMode(false);
-              }
-            }}
-          />
+            <EditToolbar
+              isDrawingMode={isDrawingMode}
+              hasMask={!!currentMask}
+              onCancel={() => setIsDrawingMode(false)}
+              onApply={(instruction) => {
+                if (currentMask && onManualEdit) {
+                  console.log("Submitting Mask for Edit. Instruction:", instruction);
+                  onManualEdit(currentMask, instruction);
+                  setCurrentMask(null);
+                  setIsDrawingMode(false);
+                }
+              }}
+            />
+          </div>
         </div>
 
         {/* Fidelity Panel */}
