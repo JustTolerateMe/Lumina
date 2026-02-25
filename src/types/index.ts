@@ -1,6 +1,6 @@
 export type ProductCategory = 'apparel' | 'home' | 'hardlines';
 
-export type ApparelMode = 'studio' | 'lifestyle' | 'on-figure' | 'campaign';
+export type ApparelMode = 'studio' | 'lifestyle' | 'on-figure' | 'campaign' | 'flatlay';
 export type HomeMode = 'home-clean-cut' | 'home-room-scene' | 'home-lifestyle-vignette';
 export type HardlinesMode = 'hardlines-clean-cut' | 'hardlines-hero-shot' | 'hardlines-in-context';
 
@@ -53,6 +53,10 @@ export type LifestyleScene =
 
 export type CampaignStyle =
   | 'minimalist_luxury' | 'street_energy' | 'neon_tech' | 'organic_natural';
+
+export type FlatlayStyle =
+  | 'pure_white' | 'warm_linen' | 'light_wood'
+  | 'dark_wood' | 'marble' | 'concrete';
 
 export type ModelPose =
   | 'standing_straight' | 'relaxed' | 'hands_on_hips' | 'walking' | 'editorial'
@@ -119,6 +123,7 @@ export interface ApparelGenerationRequest extends BaseGenerationRequest {
   model: ModelConfig;
   scene?: LifestyleScene;
   campaign?: CampaignStyle;
+  flatlay?: FlatlayStyle;
 }
 
 export interface HomeGenerationRequest extends BaseGenerationRequest {

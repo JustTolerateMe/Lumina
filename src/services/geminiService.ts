@@ -30,6 +30,7 @@ import { buildProductQualityCheckPrompt } from '../prompts/productQualityCheckPr
 import { buildRiskAnalysisPrompt } from '../prompts/riskAnalysisPrompt';
 import { computePixelQC } from './pixelQC';
 import { buildEditPrompt } from '../prompts/editPrompt';
+import { buildFlatLayPrompt } from '../prompts/flatlayPrompt';
 
 const getApiKey = () => import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -47,6 +48,7 @@ function getAI() {
 
 const IMAGE_MODEL = 'gemini-2.5-flash-image';
 const TEXT_MODEL = 'gemini-2.5-flash';
+const MAX_EDIT_RETRIES = 3;
 
 // ── Static risk constraint fallbacks ─────────────────────────────────
 
@@ -73,6 +75,7 @@ function buildPrompt(req: GenerationRequest, analysisJson?: string): string {
         case 'lifestyle': return buildLifestylePrompt(req);
         case 'on-figure': return buildOnFigurePrompt(req, analysisJson ?? '{}');
         case 'campaign': return buildCampaignPrompt(req);
+        case 'flatlay': return buildFlatLayPrompt(req);
       }
       break;
     case 'home':
@@ -470,14 +473,24 @@ Use ALL reference images to ensure maximum fidelity. Every detail visible in any
     analysisJson
   );
 
-  // Step 5: Targeted retry if QC fails
+  // Step 5: Iterative refinement loop — keep editing until QC passes or cap hit
   let finalQc = qc;
-  if (!qc.pass && qc.issues.length > 0) {
-    iterationCount = 2;
-    const failedDimension = qc.issues[0] ?? 'quality issues';
-    onProgress(`Refining: fixing ${failedDimension}...`);
+  let previousScore = finalQc.scores.overallFidelity ?? 0;
 
-    const editPrompt = buildEditPrompt(qc, analysisJson, prompt);
+  while (!finalQc.pass && finalQc.issues.length > 0 && iterationCount <= MAX_EDIT_RETRIES) {
+    const currentScore = finalQc.scores.overallFidelity ?? 0;
+
+    // Stagnation guard: stop if score didn't improve by ≥ 3 (except first retry)
+    if (iterationCount > 1 && currentScore < previousScore + 3) {
+      onProgress(`Score stagnated at ${currentScore}/10 — stopping refinement.`);
+      break;
+    }
+    previousScore = currentScore;
+
+    const failedDimension = finalQc.issues[0] ?? 'quality issues';
+    onProgress(`Refinement ${iterationCount}/${MAX_EDIT_RETRIES}: fixing ${failedDimension}...`);
+
+    const editPrompt = buildEditPrompt(finalQc, analysisJson, prompt);
 
     const editParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
       { text: editPrompt },
@@ -503,12 +516,14 @@ Use ALL reference images to ensure maximum fidelity. Every detail visible in any
       (p: any) => p.inlineData?.mimeType?.startsWith('image/')
     );
 
-    if (retryPart?.inlineData) {
-      generatedBase64 = retryPart.inlineData.data ?? '';
-      generatedMime = retryPart.inlineData.mimeType ?? 'image/png';
-    }
+    if (!retryPart?.inlineData) break; // Edit API didn't return an image — stop
 
-    onProgress('Re-checking edited image...');
+    generatedBase64 = retryPart.inlineData.data ?? '';
+    generatedMime = retryPart.inlineData.mimeType ?? 'image/png';
+
+    iterationCount++;
+
+    onProgress(`Re-checking after refinement ${iterationCount - 1}...`);
     finalQc = await checkGarmentQuality(
       req.sourceImageBase64, req.sourceImageMimeType,
       generatedBase64, generatedMime,
@@ -626,14 +641,24 @@ Use this analysis as a checklist: every detail listed must be preserved in the o
     analysisJson
   );
 
-  // Step 5: Targeted retry if QC fails
+  // Step 5: Iterative refinement loop — keep editing until QC passes or cap hit
   let finalQc = qc;
-  if (!qc.pass && qc.issues.length > 0) {
-    iterationCount = 2;
-    const failedDimension = qc.issues[0] ?? 'quality issues';
-    onProgress(`Auto-refining: fixing ${failedDimension}...`);
+  let previousScore = finalQc.scores.overallFidelity ?? 0;
 
-    const editPrompt = buildEditPrompt(qc, analysisJson, prompt);
+  while (!finalQc.pass && finalQc.issues.length > 0 && iterationCount <= MAX_EDIT_RETRIES) {
+    const currentScore = finalQc.scores.overallFidelity ?? 0;
+
+    // Stagnation guard: stop if score didn't improve by ≥ 3 (except first retry)
+    if (iterationCount > 1 && currentScore < previousScore + 3) {
+      onProgress(`Score stagnated at ${currentScore}/10 — stopping refinement.`);
+      break;
+    }
+    previousScore = currentScore;
+
+    const failedDimension = finalQc.issues[0] ?? 'quality issues';
+    onProgress(`Auto-refining ${iterationCount}/${MAX_EDIT_RETRIES}: fixing ${failedDimension}...`);
+
+    const editPrompt = buildEditPrompt(finalQc, analysisJson, prompt);
 
     const editParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
       { text: editPrompt },
@@ -659,12 +684,14 @@ Use this analysis as a checklist: every detail listed must be preserved in the o
       (p: any) => p.inlineData?.mimeType?.startsWith('image/')
     );
 
-    if (retryPart?.inlineData) {
-      generatedBase64 = retryPart.inlineData.data ?? '';
-      generatedMime = retryPart.inlineData.mimeType ?? 'image/png';
-    }
+    if (!retryPart?.inlineData) break;
 
-    onProgress('Re-checking edited product...');
+    generatedBase64 = retryPart.inlineData.data ?? '';
+    generatedMime = retryPart.inlineData.mimeType ?? 'image/png';
+
+    iterationCount++;
+
+    onProgress(`Re-checking after refinement ${iterationCount - 1}...`);
     finalQc = await verifyProduct(
       req.sourceImageBase64, req.sourceImageMimeType,
       generatedBase64, generatedMime,

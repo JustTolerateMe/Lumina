@@ -403,3 +403,47 @@ export const CAMPAIGN_PRESETS = {
     moodDescription: 'natural, warm, authentic, sustainable brand energy, human connection',
   },
 } as const;
+
+export const FLATLAY_SURFACE_PRESETS: Record<string, {
+  label: string;
+  surfaceDescription: string;
+  lightingMood: string;
+  colorGrade: string;
+}> = {
+  pure_white: {
+    label: 'Pure White',
+    surfaceDescription: 'Perfectly clean pure white (#FFFFFF) seamless background surface, zero texture visible, e-commerce standard',
+    lightingMood: 'Even, shadowless top lighting from large overhead softbox, no directional shadows',
+    colorGrade: 'Neutral — zero color cast, true-to-life product colors',
+  },
+  warm_linen: {
+    label: 'Warm Linen',
+    surfaceDescription: 'Natural off-white linen fabric backdrop with subtle woven texture, warm and organic feel',
+    lightingMood: 'Soft warm window light from the upper left, gentle diffused shadows',
+    colorGrade: 'Warm neutral — slight warmth without yellow cast',
+  },
+  light_wood: {
+    label: 'Light Wood',
+    surfaceDescription: 'Light oak or birch wood surface with visible but subtle grain, clean and modern',
+    lightingMood: 'Natural daylight from above, soft shadows following wood grain direction',
+    colorGrade: 'Neutral-warm — clean modern tones',
+  },
+  dark_wood: {
+    label: 'Dark Wood',
+    surfaceDescription: 'Rich dark walnut wood surface with pronounced grain pattern, premium moody aesthetic',
+    lightingMood: 'Dramatic overhead lighting with gentle contrast, warm highlights on wood grain',
+    colorGrade: 'Warm and rich — deep tones, cinematic feel',
+  },
+  marble: {
+    label: 'Marble',
+    surfaceDescription: 'Polished white/grey marble surface with subtle natural veining, luxury aesthetic',
+    lightingMood: 'Bright clean overhead lighting with marble reflecting soft highlights',
+    colorGrade: 'Cool neutral — crisp luxury feel',
+  },
+  concrete: {
+    label: 'Concrete',
+    surfaceDescription: 'Smooth light grey concrete surface with minimal texture, industrial-modern aesthetic',
+    lightingMood: 'Flat even overhead lighting, minimal shadows for clean industrial look',
+    colorGrade: 'Cool desaturated — modern streetwear editorial tone',
+  },
+};

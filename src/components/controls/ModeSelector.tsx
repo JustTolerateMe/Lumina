@@ -1,4 +1,4 @@
-import { Camera, MapPin, User, Megaphone, Layout, Image, Box } from 'lucide-react';
+import { Camera, MapPin, User, Megaphone, Layout, Image, Box, Layers } from 'lucide-react';
 import { ProductCategory, GenerationMode } from '../../types';
 
 interface Props {
@@ -12,6 +12,7 @@ const APPAREL_MODES = [
   { key: 'lifestyle', label: 'Lifestyle', icon: MapPin },
   { key: 'on-figure', label: 'On-Figure', icon: User },
   { key: 'campaign', label: 'Campaign', icon: Megaphone },
+  { key: 'flatlay', label: 'Flatlay', icon: Layers },
 ];
 
 const HOME_MODES = [

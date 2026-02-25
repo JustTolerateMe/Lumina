@@ -12,6 +12,7 @@ import { ScenePicker } from './components/controls/ScenePicker';
 import { RoomStylePicker } from './components/controls/RoomStylePicker';
 import { HardlinesContextPicker } from './components/controls/HardlinesContextPicker';
 import { CampaignPicker } from './components/controls/CampaignPicker';
+import { FlatlayPicker } from './components/controls/FlatlayPicker';
 import { BrandProfilePicker } from './components/controls/BrandProfilePicker';
 import { GenerationCanvas } from './components/output/GenerationCanvas';
 import { GenerationHistory } from './components/output/GenerationHistory';
@@ -20,7 +21,7 @@ import {
   ProductCategory, GenerationMode, ApparelMode, HomeMode, HardlinesMode,
   GarmentConfig, HomeProductConfig, HardlinesProductConfig,
   ModelConfig, LifestyleScene, HomeRoomStyle, HardlinesContext,
-  CampaignStyle, AspectRatio, ImageSize, GenerationRequest, BrandProfile
+  CampaignStyle, FlatlayStyle, AspectRatio, ImageSize, GenerationRequest, BrandProfile
 } from './types';
 import { Sparkles, Shirt, Home, Smartphone } from 'lucide-react';
 import { SecretBlueprint } from './components/SecretBlueprint';
@@ -102,6 +103,7 @@ export default function App() {
   });
   const [scene, setScene] = useState<LifestyleScene>('minimal_indoor');
   const [campaign, setCampaign] = useState<CampaignStyle>('minimalist_luxury');
+  const [flatlayStyle, setFlatlayStyle] = useState<FlatlayStyle>('pure_white');
 
   // Home State
   const [homeProduct, setHomeProduct] = useState<HomeProductConfig>({
@@ -161,6 +163,7 @@ export default function App() {
         model: modelConfig,
         scene,
         campaign,
+        flatlay: flatlayStyle,
       };
     } else if (category === 'home') {
       request = {
@@ -244,9 +247,10 @@ export default function App() {
                 onChange={setGarment}
                 suggestions={state.suggestions}
               />
-              <ModelPicker value={modelConfig} onChange={setModelConfig} />
+              {mode !== 'flatlay' && <ModelPicker value={modelConfig} onChange={setModelConfig} />}
               {mode === 'lifestyle' && <ScenePicker value={scene} onChange={setScene} />}
               {mode === 'campaign' && <CampaignPicker value={campaign} onChange={setCampaign} />}
+              {mode === 'flatlay' && <FlatlayPicker value={flatlayStyle} onChange={setFlatlayStyle} />}
             </>
           )}
 
