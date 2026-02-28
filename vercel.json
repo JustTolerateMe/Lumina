@@ -1,0 +1,6 @@
+{
+  "functions": {
+    "api/pipeline.ts": { "maxDuration": 60 },
+    "api/manual-edit.ts": { "maxDuration": 60 }
+  }
+}
