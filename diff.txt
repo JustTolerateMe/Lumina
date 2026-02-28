@@ -1,313 +1,233 @@
-diff --git a/.gitignore b/.gitignore
-index 0465619..7443409 100644
-Binary files a/.gitignore and b/.gitignore differ
-diff --git a/package-lock.json b/package-lock.json
-index 735ecd2..420dd95 100644
---- a/package-lock.json
-+++ b/package-lock.json
-@@ -11,6 +11,7 @@
-         "@google/genai": "^1.0.0",
-         "browser-image-compression": "^2.0.2",
-         "framer-motion": "^12.34.3",
-+        "google-auth-library": "^10.6.1",
-         "lucide-react": "^0.474.0",
-         "react": "^19.0.0",
-         "react-dom": "^19.0.0"
-@@ -2164,17 +2165,16 @@
-       }
-     },
-     "node_modules/google-auth-library": {
--      "version": "10.5.0",
--      "resolved": "https://registry.npmjs.org/google-auth-library/-/google-auth-library-10.5.0.tgz",
--      "integrity": "sha512-7ABviyMOlX5hIVD60YOfHw4/CxOfBhyduaYB+wbFWCWoni4N7SLcV46hrVRktuBbZjFC9ONyqamZITN7q3n32w==",
-+      "version": "10.6.1",
-+      "resolved": "https://registry.npmjs.org/google-auth-library/-/google-auth-library-10.6.1.tgz",
-+      "integrity": "sha512-5awwuLrzNol+pFDmKJd0dKtZ0fPLAtoA5p7YO4ODsDu6ONJUVqbYwvv8y2ZBO5MBNp9TJXigB19710kYpBPdtA==",
-       "license": "Apache-2.0",
-       "dependencies": {
-         "base64-js": "^1.3.0",
-         "ecdsa-sig-formatter": "^1.0.11",
--        "gaxios": "^7.0.0",
--        "gcp-metadata": "^8.0.0",
--        "google-logging-utils": "^1.0.0",
--        "gtoken": "^8.0.0",
-+        "gaxios": "7.1.3",
-+        "gcp-metadata": "8.1.2",
-+        "google-logging-utils": "1.1.3",
-         "jws": "^4.0.0"
-       },
-       "engines": {
-@@ -2197,19 +2197,6 @@
-       "dev": true,
-       "license": "ISC"
-     },
--    "node_modules/gtoken": {
--      "version": "8.0.0",
--      "resolved": "https://registry.npmjs.org/gtoken/-/gtoken-8.0.0.tgz",
--      "integrity": "sha512-+CqsMbHPiSTdtSO14O51eMNlrp9N79gmeqmXeouJOhfucAedHw9noVe/n5uJk3tbKE6a+6ZCQg3RPhVhHByAIw==",
--      "license": "MIT",
--      "dependencies": {
--        "gaxios": "^7.0.0",
--        "jws": "^4.0.0"
--      },
--      "engines": {
--        "node": ">=18"
--      }
--    },
-     "node_modules/https-proxy-agent": {
-       "version": "7.0.6",
-       "resolved": "https://registry.npmjs.org/https-proxy-agent/-/https-proxy-agent-7.0.6.tgz",
-diff --git a/package.json b/package.json
-index 4c6b417..d814ec4 100644
---- a/package.json
-+++ b/package.json
-@@ -12,6 +12,7 @@
-     "@google/genai": "^1.0.0",
-     "browser-image-compression": "^2.0.2",
-     "framer-motion": "^12.34.3",
-+    "google-auth-library": "^10.6.1",
-     "lucide-react": "^0.474.0",
-     "react": "^19.0.0",
-     "react-dom": "^19.0.0"
-diff --git a/src/services/geminiService.ts b/src/services/geminiService.ts
-index 82b874c..0c5af83 100644
---- a/src/services/geminiService.ts
-+++ b/src/services/geminiService.ts
-@@ -1,393 +1,7 @@
--import { GoogleGenAI } from '@google/genai';
--import {
--  ApparelGenerationRequest,
--  GenerationRequest,
--  GenerationResult,
--  QCResult,
--  QCScores,
--  RiskFlag,
--  RiskProfile,
--  ProductSuggestions,
--  ProductCategory,
--} from '../types';
--import { SYSTEM_INSTRUCTION } from '../prompts/systemInstruction';
--import { buildStudioPrompt } from '../prompts/studioPrompt';
--import { buildLifestylePrompt } from '../prompts/lifestylePrompt';
--import {
+diff --git a/api/pipeline.ts b/api/pipeline.ts
+index afabd09..da1dd1d 100644
+--- a/api/pipeline.ts
++++ b/api/pipeline.ts
+@@ -1,12 +1,10 @@
+ import { randomUUID } from 'node:crypto';
+ import { GoogleGenAI } from '@google/genai';
+-import { GoogleAuth } from 'google-auth-library';
+-import type { GenerationRequest, ApparelGenerationRequest, QCResult, QCScores, RiskFlag, RiskProfile } from '../src/types';
++import type { GenerationRequest, ApparelGenerationRequest, QCResult, QCScores, RiskFlag, RiskProfile, ExtractedColorPalette } from '../src/types';
+ import { SYSTEM_INSTRUCTION } from '../src/prompts/systemInstruction';
+ import { buildStudioPrompt } from '../src/prompts/studioPrompt';
+ import { buildLifestylePrompt } from '../src/prompts/lifestylePrompt';
+ import {
 -  buildAnalysisPrompt as buildGarmentAnalysisPrompt,
--  buildOnFigurePrompt,
--  buildQualityCheckPrompt as buildGarmentQCPrompt,
--} from '../prompts/onFigurePrompt';
--import { buildCampaignPrompt } from '../prompts/campaignPrompt';
--import { buildHomeCleanCutPrompt } from '../prompts/homeCleanCutPrompt';
--import { buildHomeRoomScenePrompt } from '../prompts/homeRoomScenePrompt';
--import { buildHomeLifestyleVignettePrompt } from '../prompts/homeLifestyleVignettePrompt';
--import { buildHardlinesCleanCutPrompt } from '../prompts/hardlinesCleanCutPrompt';
--import { buildHardlinesHeroShotPrompt } from '../prompts/hardlinesHeroShotPrompt';
--import { buildHardlinesInContextPrompt } from '../prompts/hardlinesInContextPrompt';
--import { buildProductAnalysisPrompt } from '../prompts/productAnalysisPrompt';
--import { buildProductQualityCheckPrompt } from '../prompts/productQualityCheckPrompt';
--import { buildRiskAnalysisPrompt } from '../prompts/riskAnalysisPrompt';
-+import type { GenerationRequest, GenerationResult, ProductSuggestions, ManualEditRequest, QCScores } from '../types';
- import { computePixelQC } from './pixelQC';
--import { buildEditPrompt } from '../prompts/editPrompt';
--import { buildFlatLayPrompt } from '../prompts/flatlayPrompt';
+   buildOnFigurePrompt,
+   buildQualityCheckPrompt as buildGarmentQCPrompt,
+ } from '../src/prompts/onFigurePrompt';
+@@ -17,11 +15,10 @@ import { buildHomeLifestyleVignettePrompt } from '../src/prompts/homeLifestyleVi
+ import { buildHardlinesCleanCutPrompt } from '../src/prompts/hardlinesCleanCutPrompt';
+ import { buildHardlinesHeroShotPrompt } from '../src/prompts/hardlinesHeroShotPrompt';
+ import { buildHardlinesInContextPrompt } from '../src/prompts/hardlinesInContextPrompt';
+-import { buildProductAnalysisPrompt } from '../src/prompts/productAnalysisPrompt';
+ import { buildProductQualityCheckPrompt } from '../src/prompts/productQualityCheckPrompt';
+-import { buildRiskAnalysisPrompt } from '../src/prompts/riskAnalysisPrompt';
+ import { buildEditPrompt } from '../src/prompts/editPrompt';
+ import { buildFlatLayPrompt } from '../src/prompts/flatlayPrompt';
++import { buildProductAnalysisAndRiskPrompt, buildGarmentAnalysisAndRiskPrompt } from '../src/prompts/combinedAnalysisPrompt';
  
--const getApiKey = () => import.meta.env.VITE_GEMINI_API_KEY;
--
--let aiInstance: GoogleGenAI | null = null;
--function getAI() {
--  const apiKey = getApiKey();
--  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
--    throw new Error('Gemini API Key is missing. Please add VITE_GEMINI_API_KEY to your .env file.');
--  }
--  if (!aiInstance) {
--    aiInstance = new GoogleGenAI({ apiKey });
--  }
--  return aiInstance;
+ export const config = { maxDuration: 60 };
+ 
+@@ -40,6 +37,8 @@ const STATIC_RISK_CONSTRAINTS: Record<RiskFlag, string> = {
+   high_contrast_branding: 'Branding must be reproduced at the exact position, scale, color, and contrast as the reference.',
+   multi_section_config: 'Multi-section configuration is CRITICAL. Preserve exact layout direction, section count, and footprint shape.',
+   curved_organic_shape: 'Organic curves must flow continuously. No flattening, straightening, or artificial angularity.',
++  color_sensitive: 'Reproduce the exact product color — do NOT enhance, saturate, or beautify. The reference color is correct as-is. Any color "improvement" is a critical failure.',
++  decorative_element_placement: 'ALL decorative elements (ribbons, bows, patches, appliques, trim) are structurally fixed at their reference positions. Any displacement is a critical failure.',
+ };
+ 
+ // ── Helpers ───────────────────────────────────────────────────────────────────
+@@ -50,61 +49,36 @@ function getAI() {
+   return new GoogleGenAI({ apiKey });
+ }
+ 
+-function mapAspectRatio(ratio: string): string {
+-  const map: Record<string, string> = {
+-    '1:1': '1:1', '4:5': '3:4', '2:3': '3:4', '3:4': '3:4', '9:16': '9:16',
+-  };
+-  return map[ratio] ?? '1:1';
 -}
 -
--const IMAGE_MODEL = 'gemini-2.5-flash-image';
--const TEXT_MODEL = 'gemini-2.5-flash';
--const MAX_EDIT_RETRIES = 3;
+-async function generateWithVertexAI(prompt: string, aspectRatio = '1:1'): Promise<{ imageBase64: string; mimeType: string }> {
+-  const region = 'us-central1';
+-  const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 -
--// ── Static risk constraint fallbacks ─────────────────────────────────
--
--const STATIC_RISK_CONSTRAINTS: Record<RiskFlag, string> = {
--  reflective_surface: 'Zero tolerance for highlight displacement. Reflections must match reference light physics exactly.',
--  many_small_components: 'Count every discrete component. If the reference shows N items, output must show exactly N.',
--  micro_text_logo: 'Logo and text must remain pixel-consistent — no blur, no distortion, exact positioning and size.',
--  symmetry_critical: 'Bilateral or radial symmetry must be geometrically exact. Do not break symmetry.',
--  repeating_elements: 'Repeating elements must match the exact count from the reference. Do not add or remove any.',
--  transparent_material: 'Transparency and refraction must match reference light physics. Preserve see-through quality.',
--  complex_pattern: 'Surface pattern must be continuous and unbroken. No pattern drift, misalignment, or simplification.',
--  high_contrast_branding: 'Branding must be reproduced at the exact position, scale, color, and contrast as the reference.',
--  multi_section_config: 'Multi-section configuration is CRITICAL. Preserve exact layout direction, section count, and footprint shape.',
--  curved_organic_shape: 'Organic curves must flow continuously. No flattening, straightening, or artificial angularity.',
--};
--
--// ── Prompt builder ───────────────────────────────────────────────────
--
--function buildPrompt(req: GenerationRequest, analysisJson?: string): string {
--  switch (req.category) {
--    case 'apparel':
--      switch (req.mode) {
--        case 'studio': return buildStudioPrompt(req);
--        case 'lifestyle': return buildLifestylePrompt(req);
--        case 'on-figure': return buildOnFigurePrompt(req, analysisJson ?? '{}');
--        case 'campaign': return buildCampaignPrompt(req);
--        case 'flatlay': return buildFlatLayPrompt(req);
--      }
--      break;
--    case 'home':
--      switch (req.mode) {
--        case 'home-clean-cut': return buildHomeCleanCutPrompt(req);
--        case 'home-room-scene': return buildHomeRoomScenePrompt(req);
--        case 'home-lifestyle-vignette': return buildHomeLifestyleVignettePrompt(req);
--      }
--      break;
--    case 'hardlines':
--      switch (req.mode) {
--        case 'hardlines-clean-cut': return buildHardlinesCleanCutPrompt(req);
--        case 'hardlines-hero-shot': return buildHardlinesHeroShotPrompt(req);
--        case 'hardlines-in-context': return buildHardlinesInContextPrompt(req);
--      }
--      break;
--  }
--  throw new Error(`Unsupported category / mode: ${(req as any).category}/${(req as any).mode}`);
--}
--
--// ── Helper: extract text from Gemini response ────────────────────────
--
--function extractText(response: any): string {
--  return response.candidates?.[0]?.content?.parts
--    ?.filter((p: any) => p.text)
--    .map((p: any) => p.text)
--    .join('') ?? '';
--}
--
--function cleanJson(text: string): string {
--  return text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
--}
--
--function buildContentParts(
--  prompt: string,
--  req: { sourceImageBase64: string; sourceImageMimeType: string; additionalImages?: { base64: string; mimeType: string; label?: string }[] }
--): Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> {
--  const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
--    { text: prompt },
--    { inlineData: { mimeType: req.sourceImageMimeType, data: req.sourceImageBase64 } },
--  ];
--
--  if (req.additionalImages && req.additionalImages.length > 0) {
--    for (const img of req.additionalImages) {
--      parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
--    }
--  }
--
--  return parts;
--}
--
--// ── Helper: validate config against analysis (Safety Valve) ──────────
--
--function validateConfig(req: GenerationRequest, analysisJson: string): { severity: 'low' | 'high'; message: string } | undefined {
--  try {
--    const analysis = JSON.parse(analysisJson);
--    const userType = req.category === 'apparel' ? req.garment.type :
--      req.category === 'home' ? req.product.type :
--        req.product.type;
--
--    const aiType = (analysis.garmentType || analysis.productType || analysis.type || '').toLowerCase();
--
--    // High Severity: Structural mismatch
--    if (aiType &&
--      !aiType.includes(userType.toLowerCase()) &&
--      !userType.toLowerCase().includes(aiType)) {
--      return {
--        severity: 'high',
--        message: `Potential structural mismatch: You selected "${userType}", but the AI extracted "${aiType}". Proceeding may cause visual artifacts or hallucinations.`
--      };
--    }
--
--    return undefined;
--  } catch {
--    return undefined;
--  }
--}
--
--/**
-- * Applies prompt repetition based on research paper arXiv:2512.14982.
-- * Repeating the query for non-reasoning tasks significantly boosts accuracy.
-- */
--function applyRepetition(instruction: string): string {
--  return `${instruction}\n\n[REPEATED FOR ACCURACY]:\n${instruction}`;
--}
--
--// ── Product analysis (universal) ─────────────────────────────────────
--
--async function analyzeProduct(
--  imageBase64: string,
--  imageMimeType: string,
--  additionalImages?: { base64: string; mimeType: string; label?: string }[]
--): Promise<string> {
--  const parts: Array<any> = [
--    { text: applyRepetition(buildProductAnalysisPrompt()) },
--    { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
--  ];
--  if (additionalImages) {
--    additionalImages.forEach(img => {
--      parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+-  let auth: GoogleAuth;
+-  if (credentialsJson) {
+-    auth = new GoogleAuth({
+-      credentials: JSON.parse(credentialsJson),
+-      scopes: 'https://www.googleapis.com/auth/cloud-platform',
 -    });
+-  } else {
+-    auth = new GoogleAuth({ scopes: 'https://www.googleapis.com/auth/cloud-platform' });
 -  }
 -
--  const response = await getAI().models.generateContent({
--    model: TEXT_MODEL,
--    contents: [{ parts }],
--    config: { responseModalities: ['TEXT'] },
--  });
+-  let projectId = await auth.getProjectId().catch(() => null);
+-  if (!projectId || projectId === 'lumina-app-488718') {
+-    projectId = 'project-8835c244-6581-4347-820';
++async function generateImage(
++  prompt: string,
++  sourceImageBase64: string,
++  sourceImageMimeType: string,
++  additionalImages?: Array<{ base64: string; mimeType: string; label?: string }>
++): Promise<{ imageBase64: string; mimeType: string }> {
++  const parts: any[] = [
++    { text: prompt },
++    { inlineData: { mimeType: sourceImageMimeType, data: sourceImageBase64 } },
++  ];
++  if (additionalImages) {
++    for (const img of additionalImages) {
++      parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
++    }
+   }
 -
--  const text = extractText(response);
--  if (!text) throw new Error('Product analysis failed.');
+-  const client = await auth.getClient();
+-  const tokenResponse = await client.getAccessToken();
+-  const token = tokenResponse.token;
+-  if (!token) throw new Error('Failed to get Vertex AI access token.');
+-
+-  const modelId = 'imagen-3.0-generate-002';
+-  const endpoint = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models/${modelId}:predict`;
+-
+-  const response = await fetch(endpoint, {
+-    method: 'POST',
+-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+-    body: JSON.stringify({
+-      instances: [{ prompt }],
+-      parameters: {
+-        sampleCount: 1,
+-        aspectRatio: mapAspectRatio(aspectRatio),
+-        outputOptions: { mimeType: 'image/png' },
+-      },
+-    }),
++  const response = await getAI().models.generateContent({
++    model: IMAGE_MODEL,
++    contents: [{ parts }],
++    config: { systemInstruction: SYSTEM_INSTRUCTION, responseModalities: ['TEXT', 'IMAGE'] },
+   });
+-
+-  if (!response.ok) {
+-    const errText = await response.text();
+-    throw new Error(`Vertex AI API Error: ${errText}`);
++  const imagePart = response.candidates?.[0]?.content?.parts?.find(
++    (p: any) => p.inlineData?.mimeType?.startsWith('image/')
++  );
++  if (!imagePart?.inlineData) {
++    throw new Error('No image returned from Gemini.');
+   }
+-
+-  const data = await response.json();
+-  if (!data.predictions?.[0]?.bytesBase64Encoded) throw new Error('No image returned from Imagen 3.');
+-  return { imageBase64: data.predictions[0].bytesBase64Encoded, mimeType: 'image/png' };
++  return {
++    imageBase64: imagePart.inlineData.data ?? '',
++    mimeType: imagePart.inlineData.mimeType ?? 'image/png',
++  };
+ }
+ 
+ function extractText(response: any): string {
+@@ -178,11 +152,57 @@ function buildPrompt(req: GenerationRequest, analysisJson?: string): string {
+   throw new Error(`Unsupported category/mode: ${(req as any).category}/${(req as any).mode}`);
+ }
+ 
++function buildFidelityConstraints(
++  analysisJson: string,
++  extractedColors?: ExtractedColorPalette
++): string {
++  let analysis: any;
++  try { analysis = JSON.parse(analysisJson); } catch { return ''; }
++
++  const lines: string[] = [];
++
++  // ── Color lock (pixel-accurate palette measured client-side) ──────────────
++  if (extractedColors && extractedColors.colors.length > 0) {
++    lines.push('COLOR LOCK — PIXEL-ACCURATE MEASUREMENTS (extracted directly from reference pixels):');
++    for (const c of extractedColors.colors) {
++      lines.push(`  ${c.hex} — covers ~${c.percentage}% of the product`);
++    }
++    lines.push(
++      'These hex values are EXACT measurements, not estimates.',
++      'Do NOT make colors more vibrant, saturated, or appealing. Do NOT shift hue or brightness.',
++      'Reproduce these exact hex values. Any deviation from the measured palette is a critical failure.',
++    );
++  }
++
++  // ── Element position lock ─────────────────────────────────────────────────
++  const elements = [
++    ...(Array.isArray(analysis.structuralDecorativeElements) ? analysis.structuralDecorativeElements : []),
++    ...(Array.isArray(analysis.graphicElements) ? analysis.graphicElements.filter((g: any) => g.type !== 'none') : []),
++  ];
++
++  if (elements.length > 0) {
++    lines.push('', 'ELEMENT POSITION LOCK — ALL POSITIONS ARE STRUCTURALLY FIXED:');
++    for (const el of elements) {
++      const pos  = el.position || el.location || '';
++      const desc = el.description || el.type || '';
++      if (desc && pos) {
++        lines.push(`- "${desc}": FIXED at ${pos}. This is a structural attachment point — do NOT move it.`);
++      }
++    }
++    lines.push('Any element at the wrong position is a critical failure. Verify against the reference before finalizing.');
++  }
++
++  return lines.length > 0 ? `\n\n${lines.join('\n')}` : '';
++}
++
+ // ── Gemini API calls ──────────────────────────────────────────────────────────
+ 
+-async function analyzeProduct(imageBase64: string, imageMimeType: string, additionalImages?: { base64: string; mimeType: string }[]): Promise<string> {
++async function analyzeProductAndRisks(
++  imageBase64: string, imageMimeType: string,
++  additionalImages?: { base64: string; mimeType: string }[]
++): Promise<{ analysisJson: string; riskProfile: RiskProfile }> {
+   const parts: any[] = [
+-    { text: applyRepetition(buildProductAnalysisPrompt()) },
++    { text: applyRepetition(buildProductAnalysisAndRiskPrompt()) },
+     { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
+   ];
+   if (additionalImages) for (const img of additionalImages) parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+@@ -192,12 +212,24 @@ async function analyzeProduct(imageBase64: string, imageMimeType: string, additi
+   });
+   const text = extractText(response);
+   if (!text) throw new Error('Product analysis failed.');
+-  return cleanJson(text);
++
++  const parsed = JSON.parse(cleanJson(text));
++  const analysisJson = JSON.stringify(parsed.analysis ?? parsed);
++  const r = parsed.risks ?? {};
++  const riskProfile: RiskProfile = {
++    flags: Array.isArray(r.flags) ? r.flags : [],
++    descriptions: r.descriptions ?? {},
++    constraintOverrides: Array.isArray(r.constraintOverrides) ? r.constraintOverrides : [],
++  };
++  return { analysisJson, riskProfile };
+ }
+ 
+-async function analyzeGarment(imageBase64: string, imageMimeType: string, additionalImages?: { base64: string; mimeType: string }[]): Promise<string> {
++async function analyzeGarmentAndRisks(
++  imageBase64: string, imageMimeType: string,
++  additionalImages?: { base64: string; mimeType: string }[]
++): Promise<{ analysisJson: string; riskProfile: RiskProfile }> {
+   const parts: any[] = [
+-    { text: applyRepetition(buildGarmentAnalysisPrompt()) },
++    { text: applyRepetition(buildGarmentAnalysisAndRiskPrompt()) },
+     { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
+   ];
+   if (additionalImages) for (const img of additionalImages) parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+@@ -207,24 +239,16 @@ async function analyzeGarment(imageBase64: string, imageMimeType: string, additi
+   });
+   const text = extractText(response);
+   if (!text) throw new Error('Garment analysis failed.');
 -  return cleanJson(text);
 -}
--
--// ── Semantic Suggestions (Auto-config) ────────────────────────────────
--
--export async function getSemanticSuggestions(
--  imageBase64: string,
--  imageMimeType: string
--): Promise<ProductSuggestions> {
--  const analysisJson = await analyzeProduct(imageBase64, imageMimeType);
--  try {
--    const analysis = JSON.parse(analysisJson);
--
--    // Auto-detect category based on AI analysis
--    let category: ProductCategory = 'apparel';
--    const typeText = (analysis.productType || analysis.type || '').toLowerCase();
--
--    if (typeText.match(/sofa|chair|table|lamp|decor|furniture|kitchenware|bed/)) {
--      category = 'home';
--    } else if (typeText.match(/electronics|gadget|watch|phone|tool|automotive|sports/)) {
--      category = 'hardlines';
--    }
--
--    return {
--      category,
--      type: analysis.productType || analysis.type,
--      colorDescription: analysis.color,
--      material: analysis.material,
--      finish: analysis.finish,
--    };
--  } catch {
--    return { category: 'apparel' }; // Fallback
--  }
--}
--
--// ── Risk analysis ────────────────────────────────────────────────────
--
+ 
 -async function identifyRisks(analysisJson: string): Promise<RiskProfile> {
 -  const response = await getAI().models.generateContent({
 -    model: TEXT_MODEL,
 -    contents: [{ parts: [{ text: applyRepetition(buildRiskAnalysisPrompt(analysisJson)) }] }],
 -    config: { responseModalities: ['TEXT'] },
 -  });
--
 -  const text = extractText(response);
 -  try {
 -    const parsed = JSON.parse(cleanJson(text));
@@ -316,662 +236,1343 @@ index 82b874c..0c5af83 100644
 -      descriptions: parsed.descriptions ?? {},
 -      constraintOverrides: Array.isArray(parsed.constraintOverrides) ? parsed.constraintOverrides : [],
 -    };
--  } catch {
--    return { flags: [], descriptions: {}, constraintOverrides: [] };
--  }
--}
--
--function buildRiskConstraints(riskProfile: RiskProfile): string {
--  if (riskProfile.flags.length === 0) return '';
--
--  const constraints: string[] = [];
--
--  for (const flag of riskProfile.flags) {
--    const staticConstraint = STATIC_RISK_CONSTRAINTS[flag];
--    if (staticConstraint) {
--      constraints.push(staticConstraint);
--    }
--  }
--
--  for (const override of riskProfile.constraintOverrides) {
--    constraints.push(override);
--  }
--
--  return `\n\nRISK-BASED CONSTRAINTS (high priority — failure to comply invalidates the image):\n${constraints.join('\n')}`;
--}
--
--// ── Product QC (universal — returns full scores) ─────────────────────
--
--async function verifyProduct(
--  originalBase64: string,
--  originalMime: string,
--  generatedBase64: string,
--  generatedMime: string,
--  analysisJson: string
--): Promise<QCResult> {
--  const response = await getAI().models.generateContent({
--    model: TEXT_MODEL,
--    contents: [{
--      parts: [
--        { text: applyRepetition(buildProductQualityCheckPrompt(analysisJson)) },
--        { inlineData: { mimeType: originalMime, data: originalBase64 } },
--        { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
--      ],
--    }],
--    config: { responseModalities: ['TEXT'] },
--  });
--
--  const text = extractText(response);
--  try {
--    const parsed = JSON.parse(cleanJson(text));
--    return {
--      scores: parsed.scores ?? {
--        colorAccuracy: 10, configurationMatch: 10, componentCount: 10,
--        proportionFidelity: 10, constructionDetails: 10,
--        brandingPreservation: 10, overallFidelity: 10,
--      },
--      pass: parsed.pass ?? true,
--      issues: Array.isArray(parsed.issues) ? parsed.issues : [],
--      recommendation: parsed.recommendation ?? 'approve',
--    };
--  } catch {
--    return {
--      scores: {
--        colorAccuracy: 10, configurationMatch: 10, componentCount: 10,
--        proportionFidelity: 10, constructionDetails: 10,
--        brandingPreservation: 10, overallFidelity: 10,
--      },
--      pass: true,
--      issues: [],
--      recommendation: 'approve',
--    };
--  }
--}
--
--// ── Garment-specific analysis (apparel on-figure only) ───────────────
--
--async function analyzeGarment(
--  imageBase64: string,
--  imageMimeType: string,
--  additionalImages?: { base64: string; mimeType: string; label?: string }[]
--): Promise<string> {
--  const parts: Array<any> = [
--    { text: applyRepetition(buildGarmentAnalysisPrompt()) },
--    { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
--  ];
--  if (additionalImages) {
--    additionalImages.forEach(img => {
--      parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
--    });
--  }
--
--  const response = await getAI().models.generateContent({
--    model: TEXT_MODEL,
--    contents: [{ parts }],
--    config: { responseModalities: ['TEXT'] },
--  });
--
--  const text = extractText(response);
--  if (!text) throw new Error('Garment analysis failed.');
--  return cleanJson(text);
--}
--
--async function checkGarmentQuality(
--  originalBase64: string,
--  originalMime: string,
--  generatedBase64: string,
--  generatedMime: string,
--  analysisJson: string
--): Promise<QCResult> {
--  const response = await getAI().models.generateContent({
--    model: TEXT_MODEL,
--    contents: [{
--      parts: [
--        { text: applyRepetition(buildGarmentQCPrompt(analysisJson)) },
--        { inlineData: { mimeType: originalMime, data: originalBase64 } },
--        { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
--      ],
--    }],
--    config: { responseModalities: ['TEXT'] },
--  });
--
--  const text = extractText(response);
--  try {
--    const parsed = JSON.parse(cleanJson(text));
--    return {
--      scores: parsed.scores ?? {
--        colorAccuracy: 10, graphicPreservation: 10,
--        silhouetteMatch: 10, textureMatch: 10, overallFidelity: 10,
--      },
--      pass: parsed.pass ?? true,
--      issues: Array.isArray(parsed.issues) ? parsed.issues : [],
--      recommendation: parsed.recommendation ?? 'approve',
--    };
--  } catch {
--    return {
--      scores: {
--        colorAccuracy: 10, graphicPreservation: 10,
--        silhouetteMatch: 10, textureMatch: 10, overallFidelity: 10,
--      },
--      pass: true,
--      issues: [],
--      recommendation: 'approve',
--    };
--  }
--}
--
--// ── Targeted retry constraint builder ────────────────────────────────
--
--// buildTargetedRetryConstraints removed
--
--// ── Composite score calculation ──────────────────────────────────────
-+// ── Composite score (browser-only — requires Canvas API via computePixelQC) ───
- 
- function computeCompositeScore(
-   semanticScores: QCScores,
-@@ -407,418 +21,114 @@ function computeCompositeScore(
-     'hardlines-in-context',
-   ];
-   const semanticWeight = bgChangesModes.includes(mode) ? 0.8 : 0.6;
--  const pixelWeight = 1 - semanticWeight;
--
--  return Math.round(semanticAvg * semanticWeight + pixelAvg * pixelWeight);
-+  return Math.round(semanticAvg * semanticWeight + pixelAvg * (1 - semanticWeight));
+-  } catch { return { flags: [], descriptions: {}, constraintOverrides: [] }; }
++  const parsed = JSON.parse(cleanJson(text));
++  const analysisJson = JSON.stringify(parsed.analysis ?? parsed);
++  const r = parsed.risks ?? {};
++  const riskProfile: RiskProfile = {
++    flags: Array.isArray(r.flags) ? r.flags : [],
++    descriptions: r.descriptions ?? {},
++    constraintOverrides: Array.isArray(r.constraintOverrides) ? r.constraintOverrides : [],
++  };
++  return { analysisJson, riskProfile };
  }
  
--// ── On-figure pipeline (apparel only — specialized) ──────────────────
-+// ── SSE reader (fetch-based, works with POST unlike EventSource) ───────────
+ async function verifyProduct(
+@@ -304,11 +328,8 @@ interface ServerResult {
+ async function runOnFigurePipeline(req: ApparelGenerationRequest, onProgress: (s: string) => void): Promise<ServerResult> {
+   let iterationCount = 1;
  
--async function generateOnFigure(
--  req: ApparelGenerationRequest,
--  onProgress: (step: string) => void
--): Promise<GenerationResult> {
--  let iterationCount = 1;
--
--  // Step 1: Garment-specific analysis
 -  onProgress('Analyzing garment details...');
--  const analysisJson = await analyzeGarment(
--    req.sourceImageBase64,
--    req.sourceImageMimeType,
--    req.additionalImages
--  );
+-  const analysisJson = await analyzeGarment(req.sourceImageBase64, req.sourceImageMimeType, req.additionalImages);
 -
--  // Step 2: Risk analysis & Safety Valve
 -  onProgress('Assessing generation risks...');
 -  const riskProfile = await identifyRisks(analysisJson);
--  const validationWarning = validateConfig(req, analysisJson);
--
--  // Step 3: Generate with analysis + risk constraints
--  onProgress('Placing garment on model...');
--  const basePrompt = buildOnFigurePrompt(req, analysisJson);
--  let imageLabel = '';
--  if (req.additionalImages && req.additionalImages.length > 0) {
--    imageLabel = `\n\nMULTIPLE REFERENCE IMAGES PROVIDED:
--- Image 1 (primary): Front/main view of the product
--${req.additionalImages.map((img, i) => `- Image ${i + 2}${img.label ? ` (${img.label})` : ''}: Additional reference angle`).join('\n')}
--Use ALL reference images to ensure maximum fidelity. Every detail visible in any reference must be preserved.`;
--  }
++  onProgress('Analyzing garment details and risks...');
++  const { analysisJson, riskProfile } = await analyzeGarmentAndRisks(req.sourceImageBase64, req.sourceImageMimeType, req.additionalImages);
+   const validationWarning = validateConfig(req, analysisJson);
+ 
+   onProgress('Placing garment on model...');
+@@ -317,9 +338,9 @@ async function runOnFigurePipeline(req: ApparelGenerationRequest, onProgress: (s
+   if (req.additionalImages && req.additionalImages.length > 0) {
+     imageLabel = `\n\nMULTIPLE REFERENCE IMAGES PROVIDED:\n- Image 1 (primary): Front/main view of the product\n${req.additionalImages.map((img, i) => `- Image ${i + 2}${img.label ? ` (${img.label})` : ''}: Additional reference angle`).join('\n')}\nUse ALL reference images to ensure maximum fidelity. Every detail visible in any reference must be preserved.`;
+   }
 -  const prompt = basePrompt + buildRiskConstraints(riskProfile) + imageLabel;
--
--  const generateResponse = await getAI().models.generateContent({
--    model: IMAGE_MODEL,
--    contents: [{
--      parts: buildContentParts(prompt, req),
--    }],
--    config: {
--      systemInstruction: SYSTEM_INSTRUCTION,
--      responseModalities: ['TEXT', 'IMAGE'],
--    },
--  });
--
--  const imagePart = generateResponse.candidates?.[0]?.content?.parts?.find(
--    (p: any) => p.inlineData?.mimeType?.startsWith('image/')
--  );
--
--  if (!imagePart?.inlineData) throw new Error('Generation failed.');
--
--  let generatedBase64 = imagePart.inlineData.data ?? '';
--  let generatedMime = imagePart.inlineData.mimeType ?? 'image/png';
-+async function* readSSE(response: Response): AsyncGenerator<any> {
-+  const reader = response.body!.getReader();
-+  const decoder = new TextDecoder();
-+  let buffer = '';
++  const prompt = basePrompt + buildRiskConstraints(riskProfile) + buildFidelityConstraints(analysisJson, req.extractedColors) + imageLabel;
  
--  // Step 4: Garment-specific QC
--  onProgress('Checking garment accuracy...');
--  const qc = await checkGarmentQuality(
--    req.sourceImageBase64, req.sourceImageMimeType,
--    generatedBase64, generatedMime,
--    analysisJson
--  );
--
--  // Step 5: Iterative refinement loop — keep editing until QC passes or cap hit
--  let finalQc = qc;
--  let previousScore = finalQc.scores.overallFidelity ?? 0;
--
--  while (!finalQc.pass && finalQc.issues.length > 0 && iterationCount <= MAX_EDIT_RETRIES) {
--    const currentScore = finalQc.scores.overallFidelity ?? 0;
--
--    // Stagnation guard: stop if score didn't improve by ≥ 3 (except first retry)
--    if (iterationCount > 1 && currentScore < previousScore + 3) {
--      onProgress(`Score stagnated at ${currentScore}/10 — stopping refinement.`);
--      break;
--    }
--    previousScore = currentScore;
--
--    const failedDimension = finalQc.issues[0] ?? 'quality issues';
--    onProgress(`Refinement ${iterationCount}/${MAX_EDIT_RETRIES}: fixing ${failedDimension}...`);
--
--    const editPrompt = buildEditPrompt(finalQc, analysisJson, prompt);
--
--    const editParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
--      { text: editPrompt },
--      { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
--      { inlineData: { mimeType: req.sourceImageMimeType, data: req.sourceImageBase64 } },
--    ];
--    if (req.additionalImages && req.additionalImages.length > 0) {
--      for (const img of req.additionalImages) {
--        editParts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
--      }
-+  while (true) {
-+    const { done, value } = await reader.read();
-+    if (done) break;
-+    buffer += decoder.decode(value, { stream: true });
-+    const parts = buffer.split('\n\n');
-+    buffer = parts.pop() ?? '';
-+    for (const part of parts) {
-+      if (!part.startsWith('data: ')) continue;
-+      try { yield JSON.parse(part.slice(6)); } catch { /* skip malformed event */ }
-     }
--
--    const retryResponse = await getAI().models.generateContent({
--      model: IMAGE_MODEL,
--      contents: [{ parts: editParts }],
--      config: {
--        systemInstruction: SYSTEM_INSTRUCTION,
--        responseModalities: ['TEXT', 'IMAGE'],
--      },
--    });
--
--    const retryPart = retryResponse.candidates?.[0]?.content?.parts?.find(
--      (p: any) => p.inlineData?.mimeType?.startsWith('image/')
--    );
--
--    if (!retryPart?.inlineData) break; // Edit API didn't return an image — stop
--
--    generatedBase64 = retryPart.inlineData.data ?? '';
--    generatedMime = retryPart.inlineData.mimeType ?? 'image/png';
--
--    iterationCount++;
--
--    onProgress(`Re-checking after refinement ${iterationCount - 1}...`);
--    finalQc = await checkGarmentQuality(
--      req.sourceImageBase64, req.sourceImageMimeType,
--      generatedBase64, generatedMime,
--      analysisJson
--    );
-   }
--
--  // Step 6: Pixel QC
--  onProgress('Computing pixel-level fidelity...');
--  const pixelQCScores = await computePixelQC(
--    req.sourceImageBase64, req.sourceImageMimeType,
--    generatedBase64, generatedMime
--  );
--
--  const compositeScore = computeCompositeScore(
--    finalQc.scores,
--    pixelQCScores,
--    req.mode
--  );
--
--  return {
--    id: crypto.randomUUID(),
--    imageBase64: generatedBase64,
--    mimeType: generatedMime,
--    request: req,
--    timestamp: Date.now(),
--    analysisText: analysisJson,
--    riskProfile,
--    qcScores: finalQc.scores,
--    qcPass: finalQc.pass,
--    qcIssues: finalQc.issues,
--    pixelQCScores,
--    compositeScore,
--    iterationCount,
--    validationWarning,
--  };
- }
+-  const { imageBase64: genBase64, mimeType: genMime } = await generateWithVertexAI(prompt, req.aspectRatio);
++  const { imageBase64: genBase64, mimeType: genMime } = await generateImage(prompt, req.sourceImageBase64, req.sourceImageMimeType, req.additionalImages);
+   let generatedBase64 = genBase64;
+   let generatedMime = genMime;
  
--// ── Universal pipeline (all modes except apparel on-figure) ──────────
-+// ── Generate ───────────────────────────────────────────────────────────────
+@@ -384,11 +405,8 @@ async function runOnFigurePipeline(req: ApparelGenerationRequest, onProgress: (s
+ async function runUniversalPipeline(req: GenerationRequest, onProgress: (s: string) => void): Promise<ServerResult> {
+   let iterationCount = 1;
  
- export async function generate(
-   req: GenerationRequest,
--  onProgress: (step: string) => void = () => { }
-+  onProgress: (step: string) => void = () => {}
- ): Promise<GenerationResult> {
--  if (req.category === 'apparel' && req.mode === 'on-figure') {
--    return generateOnFigure(req, onProgress);
--  }
--
--  let iterationCount = 1;
--
--  // Step 1: Universal product analysis
 -  onProgress('Analyzing product details...');
--  const analysisJson = await analyzeProduct(
--    req.sourceImageBase64,
--    req.sourceImageMimeType,
--    req.additionalImages
--  );
+-  const analysisJson = await analyzeProduct(req.sourceImageBase64, req.sourceImageMimeType, req.additionalImages);
 -
--  // Step 2: Risk analysis & Safety Valve
 -  onProgress('Assessing generation risks...');
 -  const riskProfile = await identifyRisks(analysisJson);
--  const validationWarning = validateConfig(req, analysisJson);
--
--  // Step 3: Build mode-specific prompt + inject analysis + risk constraints
--  onProgress('Generating high-fidelity product photo...');
--
--  const customInstructions = req.category === 'apparel' ? req.garment.customInstructions :
--    req.category === 'home' ? req.product.customInstructions :
--      req.product.customInstructions;
-+  const response = await fetch('/api/pipeline', {
-+    method: 'POST',
-+    headers: { 'Content-Type': 'application/json' },
-+    body: JSON.stringify(req),
-+  });
++  onProgress('Analyzing product details and risks...');
++  const { analysisJson, riskProfile } = await analyzeProductAndRisks(req.sourceImageBase64, req.sourceImageMimeType, req.additionalImages);
+   const validationWarning = validateConfig(req, analysisJson);
  
--  const modePrompt = buildPrompt(req);
--  let imageLabel = '';
--  if (req.additionalImages && req.additionalImages.length > 0) {
--    imageLabel = `\n\nMULTIPLE REFERENCE IMAGES PROVIDED:
--- Image 1 (primary): Front/main view of the product
--${req.additionalImages.map((img, i) => `- Image ${i + 2}${img.label ? ` (${img.label})` : ''}: Additional reference angle`).join('\n')}
--Use ALL reference images to ensure maximum fidelity. Every detail visible in any reference must be preserved.`;
-+  if (!response.ok) {
-+    const text = await response.text();
-+    throw new Error(`Pipeline error (${response.status}): ${text}`);
+   onProgress('Generating high-fidelity product photo...');
+@@ -401,9 +419,9 @@ async function runUniversalPipeline(req: GenerationRequest, onProgress: (s: stri
+     imageLabel = `\n\nMULTIPLE REFERENCE IMAGES PROVIDED:\n- Image 1 (primary): Front/main view of the product\n${req.additionalImages.map((img, i) => `- Image ${i + 2}${img.label ? ` (${img.label})` : ''}: Additional reference angle`).join('\n')}\nUse ALL reference images to ensure maximum fidelity. Every detail visible in any reference must be preserved.`;
    }
  
--  const prompt = `${modePrompt}
--
--PRODUCT ANALYSIS (verified ground truth extracted from the reference image — do not deviate from this):
--${analysisJson}
--
--${customInstructions ? `STYLING NOTES / CUSTOM INSTRUCTIONS:\n${customInstructions}\n` : ''}\
--REFERENCE IMAGE: Attached. The analysis above was extracted from this reference.${imageLabel}
--If any discrepancy between analysis text and the image, the image is the source of truth.
--Use this analysis as a checklist: every detail listed must be preserved in the output.${buildRiskConstraints(riskProfile)}`;
--
--  const generateResponse = await getAI().models.generateContent({
--    model: IMAGE_MODEL,
--    contents: [{
--      parts: buildContentParts(prompt, req),
--    }],
--    config: {
--      systemInstruction: SYSTEM_INSTRUCTION,
--      responseModalities: ['TEXT', 'IMAGE'],
--    },
--  });
-+  let serverResult: any = null;
+-  const prompt = `${modePrompt}\n\nPRODUCT ANALYSIS (verified ground truth extracted from the reference image — do not deviate from this):\n${analysisJson}\n\n${customInstructions ? `STYLING NOTES / CUSTOM INSTRUCTIONS:\n${customInstructions}\n` : ''}REFERENCE IMAGE: Attached. The analysis above was extracted from this reference.${imageLabel}\nIf any discrepancy between analysis text and the image, the image is the source of truth.\nUse this analysis as a checklist: every detail listed must be preserved in the output.${buildRiskConstraints(riskProfile)}`;
++  const prompt = `${modePrompt}\n\nPRODUCT ANALYSIS (verified ground truth extracted from the reference image — do not deviate from this):\n${analysisJson}\n\n${customInstructions ? `STYLING NOTES / CUSTOM INSTRUCTIONS:\n${customInstructions}\n` : ''}REFERENCE IMAGE: Attached. The analysis above was extracted from this reference.${imageLabel}\nIf any discrepancy between analysis text and the image, the image is the source of truth.\nUse this analysis as a checklist: every detail listed must be preserved in the output.${buildRiskConstraints(riskProfile)}${buildFidelityConstraints(analysisJson, req.extractedColors)}`;
  
--  const imagePart = generateResponse.candidates?.[0]?.content?.parts?.find(
--    (p: any) => p.inlineData?.mimeType?.startsWith('image/')
--  );
--
--  if (!imagePart?.inlineData) throw new Error('Generation failed.');
-+  for await (const event of readSSE(response)) {
-+    if (event.type === 'progress') onProgress(event.step);
-+    else if (event.type === 'result') serverResult = event.payload;
-+    else if (event.type === 'error') throw new Error(event.message);
-+  }
+-  const { imageBase64: genBase64, mimeType: genMime } = await generateWithVertexAI(prompt, req.aspectRatio);
++  const { imageBase64: genBase64, mimeType: genMime } = await generateImage(prompt, req.sourceImageBase64, req.sourceImageMimeType, req.additionalImages);
+   let generatedBase64 = genBase64;
+   let generatedMime = genMime;
  
--  let generatedBase64 = imagePart.inlineData.data ?? '';
--  let generatedMime = imagePart.inlineData.mimeType ?? 'image/png';
-+  if (!serverResult) throw new Error('No result received from pipeline.');
+diff --git a/diff.txt b/diff.txt
+index f586ba1..ba62cfd 100644
+--- a/diff.txt
++++ b/diff.txt
+@@ -1,977 +0,0 @@
+-diff --git a/.gitignore b/.gitignore
+-index 0465619..7443409 100644
+-Binary files a/.gitignore and b/.gitignore differ
+-diff --git a/package-lock.json b/package-lock.json
+-index 735ecd2..420dd95 100644
+---- a/package-lock.json
+-+++ b/package-lock.json
+-@@ -11,6 +11,7 @@
+-         "@google/genai": "^1.0.0",
+-         "browser-image-compression": "^2.0.2",
+-         "framer-motion": "^12.34.3",
+-+        "google-auth-library": "^10.6.1",
+-         "lucide-react": "^0.474.0",
+-         "react": "^19.0.0",
+-         "react-dom": "^19.0.0"
+-@@ -2164,17 +2165,16 @@
+-       }
+-     },
+-     "node_modules/google-auth-library": {
+--      "version": "10.5.0",
+--      "resolved": "https://registry.npmjs.org/google-auth-library/-/google-auth-library-10.5.0.tgz",
+--      "integrity": "sha512-7ABviyMOlX5hIVD60YOfHw4/CxOfBhyduaYB+wbFWCWoni4N7SLcV46hrVRktuBbZjFC9ONyqamZITN7q3n32w==",
+-+      "version": "10.6.1",
+-+      "resolved": "https://registry.npmjs.org/google-auth-library/-/google-auth-library-10.6.1.tgz",
+-+      "integrity": "sha512-5awwuLrzNol+pFDmKJd0dKtZ0fPLAtoA5p7YO4ODsDu6ONJUVqbYwvv8y2ZBO5MBNp9TJXigB19710kYpBPdtA==",
+-       "license": "Apache-2.0",
+-       "dependencies": {
+-         "base64-js": "^1.3.0",
+-         "ecdsa-sig-formatter": "^1.0.11",
+--        "gaxios": "^7.0.0",
+--        "gcp-metadata": "^8.0.0",
+--        "google-logging-utils": "^1.0.0",
+--        "gtoken": "^8.0.0",
+-+        "gaxios": "7.1.3",
+-+        "gcp-metadata": "8.1.2",
+-+        "google-logging-utils": "1.1.3",
+-         "jws": "^4.0.0"
+-       },
+-       "engines": {
+-@@ -2197,19 +2197,6 @@
+-       "dev": true,
+-       "license": "ISC"
+-     },
+--    "node_modules/gtoken": {
+--      "version": "8.0.0",
+--      "resolved": "https://registry.npmjs.org/gtoken/-/gtoken-8.0.0.tgz",
+--      "integrity": "sha512-+CqsMbHPiSTdtSO14O51eMNlrp9N79gmeqmXeouJOhfucAedHw9noVe/n5uJk3tbKE6a+6ZCQg3RPhVhHByAIw==",
+--      "license": "MIT",
+--      "dependencies": {
+--        "gaxios": "^7.0.0",
+--        "jws": "^4.0.0"
+--      },
+--      "engines": {
+--        "node": ">=18"
+--      }
+--    },
+-     "node_modules/https-proxy-agent": {
+-       "version": "7.0.6",
+-       "resolved": "https://registry.npmjs.org/https-proxy-agent/-/https-proxy-agent-7.0.6.tgz",
+-diff --git a/package.json b/package.json
+-index 4c6b417..d814ec4 100644
+---- a/package.json
+-+++ b/package.json
+-@@ -12,6 +12,7 @@
+-     "@google/genai": "^1.0.0",
+-     "browser-image-compression": "^2.0.2",
+-     "framer-motion": "^12.34.3",
+-+    "google-auth-library": "^10.6.1",
+-     "lucide-react": "^0.474.0",
+-     "react": "^19.0.0",
+-     "react-dom": "^19.0.0"
+-diff --git a/src/services/geminiService.ts b/src/services/geminiService.ts
+-index 82b874c..0c5af83 100644
+---- a/src/services/geminiService.ts
+-+++ b/src/services/geminiService.ts
+-@@ -1,393 +1,7 @@
+--import { GoogleGenAI } from '@google/genai';
+--import {
+--  ApparelGenerationRequest,
+--  GenerationRequest,
+--  GenerationResult,
+--  QCResult,
+--  QCScores,
+--  RiskFlag,
+--  RiskProfile,
+--  ProductSuggestions,
+--  ProductCategory,
+--} from '../types';
+--import { SYSTEM_INSTRUCTION } from '../prompts/systemInstruction';
+--import { buildStudioPrompt } from '../prompts/studioPrompt';
+--import { buildLifestylePrompt } from '../prompts/lifestylePrompt';
+--import {
+--  buildAnalysisPrompt as buildGarmentAnalysisPrompt,
+--  buildOnFigurePrompt,
+--  buildQualityCheckPrompt as buildGarmentQCPrompt,
+--} from '../prompts/onFigurePrompt';
+--import { buildCampaignPrompt } from '../prompts/campaignPrompt';
+--import { buildHomeCleanCutPrompt } from '../prompts/homeCleanCutPrompt';
+--import { buildHomeRoomScenePrompt } from '../prompts/homeRoomScenePrompt';
+--import { buildHomeLifestyleVignettePrompt } from '../prompts/homeLifestyleVignettePrompt';
+--import { buildHardlinesCleanCutPrompt } from '../prompts/hardlinesCleanCutPrompt';
+--import { buildHardlinesHeroShotPrompt } from '../prompts/hardlinesHeroShotPrompt';
+--import { buildHardlinesInContextPrompt } from '../prompts/hardlinesInContextPrompt';
+--import { buildProductAnalysisPrompt } from '../prompts/productAnalysisPrompt';
+--import { buildProductQualityCheckPrompt } from '../prompts/productQualityCheckPrompt';
+--import { buildRiskAnalysisPrompt } from '../prompts/riskAnalysisPrompt';
+-+import type { GenerationRequest, GenerationResult, ProductSuggestions, ManualEditRequest, QCScores } from '../types';
+- import { computePixelQC } from './pixelQC';
+--import { buildEditPrompt } from '../prompts/editPrompt';
+--import { buildFlatLayPrompt } from '../prompts/flatlayPrompt';
+- 
+--const getApiKey = () => import.meta.env.VITE_GEMINI_API_KEY;
+--
+--let aiInstance: GoogleGenAI | null = null;
+--function getAI() {
+--  const apiKey = getApiKey();
+--  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+--    throw new Error('Gemini API Key is missing. Please add VITE_GEMINI_API_KEY to your .env file.');
+--  }
+--  if (!aiInstance) {
+--    aiInstance = new GoogleGenAI({ apiKey });
+--  }
+--  return aiInstance;
+--}
+--
+--const IMAGE_MODEL = 'gemini-2.5-flash-image';
+--const TEXT_MODEL = 'gemini-2.5-flash';
+--const MAX_EDIT_RETRIES = 3;
+--
+--// ── Static risk constraint fallbacks ─────────────────────────────────
+--
+--const STATIC_RISK_CONSTRAINTS: Record<RiskFlag, string> = {
+--  reflective_surface: 'Zero tolerance for highlight displacement. Reflections must match reference light physics exactly.',
+--  many_small_components: 'Count every discrete component. If the reference shows N items, output must show exactly N.',
+--  micro_text_logo: 'Logo and text must remain pixel-consistent — no blur, no distortion, exact positioning and size.',
+--  symmetry_critical: 'Bilateral or radial symmetry must be geometrically exact. Do not break symmetry.',
+--  repeating_elements: 'Repeating elements must match the exact count from the reference. Do not add or remove any.',
+--  transparent_material: 'Transparency and refraction must match reference light physics. Preserve see-through quality.',
+--  complex_pattern: 'Surface pattern must be continuous and unbroken. No pattern drift, misalignment, or simplification.',
+--  high_contrast_branding: 'Branding must be reproduced at the exact position, scale, color, and contrast as the reference.',
+--  multi_section_config: 'Multi-section configuration is CRITICAL. Preserve exact layout direction, section count, and footprint shape.',
+--  curved_organic_shape: 'Organic curves must flow continuously. No flattening, straightening, or artificial angularity.',
+--};
+--
+--// ── Prompt builder ───────────────────────────────────────────────────
+--
+--function buildPrompt(req: GenerationRequest, analysisJson?: string): string {
+--  switch (req.category) {
+--    case 'apparel':
+--      switch (req.mode) {
+--        case 'studio': return buildStudioPrompt(req);
+--        case 'lifestyle': return buildLifestylePrompt(req);
+--        case 'on-figure': return buildOnFigurePrompt(req, analysisJson ?? '{}');
+--        case 'campaign': return buildCampaignPrompt(req);
+--        case 'flatlay': return buildFlatLayPrompt(req);
+--      }
+--      break;
+--    case 'home':
+--      switch (req.mode) {
+--        case 'home-clean-cut': return buildHomeCleanCutPrompt(req);
+--        case 'home-room-scene': return buildHomeRoomScenePrompt(req);
+--        case 'home-lifestyle-vignette': return buildHomeLifestyleVignettePrompt(req);
+--      }
+--      break;
+--    case 'hardlines':
+--      switch (req.mode) {
+--        case 'hardlines-clean-cut': return buildHardlinesCleanCutPrompt(req);
+--        case 'hardlines-hero-shot': return buildHardlinesHeroShotPrompt(req);
+--        case 'hardlines-in-context': return buildHardlinesInContextPrompt(req);
+--      }
+--      break;
+--  }
+--  throw new Error(`Unsupported category / mode: ${(req as any).category}/${(req as any).mode}`);
+--}
+--
+--// ── Helper: extract text from Gemini response ────────────────────────
+--
+--function extractText(response: any): string {
+--  return response.candidates?.[0]?.content?.parts
+--    ?.filter((p: any) => p.text)
+--    .map((p: any) => p.text)
+--    .join('') ?? '';
+--}
+--
+--function cleanJson(text: string): string {
+--  return text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+--}
+--
+--function buildContentParts(
+--  prompt: string,
+--  req: { sourceImageBase64: string; sourceImageMimeType: string; additionalImages?: { base64: string; mimeType: string; label?: string }[] }
+--): Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> {
+--  const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
+--    { text: prompt },
+--    { inlineData: { mimeType: req.sourceImageMimeType, data: req.sourceImageBase64 } },
+--  ];
+--
+--  if (req.additionalImages && req.additionalImages.length > 0) {
+--    for (const img of req.additionalImages) {
+--      parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+--    }
+--  }
+--
+--  return parts;
+--}
+--
+--// ── Helper: validate config against analysis (Safety Valve) ──────────
+--
+--function validateConfig(req: GenerationRequest, analysisJson: string): { severity: 'low' | 'high'; message: string } | undefined {
+--  try {
+--    const analysis = JSON.parse(analysisJson);
+--    const userType = req.category === 'apparel' ? req.garment.type :
+--      req.category === 'home' ? req.product.type :
+--        req.product.type;
+--
+--    const aiType = (analysis.garmentType || analysis.productType || analysis.type || '').toLowerCase();
+--
+--    // High Severity: Structural mismatch
+--    if (aiType &&
+--      !aiType.includes(userType.toLowerCase()) &&
+--      !userType.toLowerCase().includes(aiType)) {
+--      return {
+--        severity: 'high',
+--        message: `Potential structural mismatch: You selected "${userType}", but the AI extracted "${aiType}". Proceeding may cause visual artifacts or hallucinations.`
+--      };
+--    }
+--
+--    return undefined;
+--  } catch {
+--    return undefined;
+--  }
+--}
+--
+--/**
+-- * Applies prompt repetition based on research paper arXiv:2512.14982.
+-- * Repeating the query for non-reasoning tasks significantly boosts accuracy.
+-- */
+--function applyRepetition(instruction: string): string {
+--  return `${instruction}\n\n[REPEATED FOR ACCURACY]:\n${instruction}`;
+--}
+--
+--// ── Product analysis (universal) ─────────────────────────────────────
+--
+--async function analyzeProduct(
+--  imageBase64: string,
+--  imageMimeType: string,
+--  additionalImages?: { base64: string; mimeType: string; label?: string }[]
+--): Promise<string> {
+--  const parts: Array<any> = [
+--    { text: applyRepetition(buildProductAnalysisPrompt()) },
+--    { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
+--  ];
+--  if (additionalImages) {
+--    additionalImages.forEach(img => {
+--      parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+--    });
+--  }
+--
+--  const response = await getAI().models.generateContent({
+--    model: TEXT_MODEL,
+--    contents: [{ parts }],
+--    config: { responseModalities: ['TEXT'] },
+--  });
+--
+--  const text = extractText(response);
+--  if (!text) throw new Error('Product analysis failed.');
+--  return cleanJson(text);
+--}
+--
+--// ── Semantic Suggestions (Auto-config) ────────────────────────────────
+--
+--export async function getSemanticSuggestions(
+--  imageBase64: string,
+--  imageMimeType: string
+--): Promise<ProductSuggestions> {
+--  const analysisJson = await analyzeProduct(imageBase64, imageMimeType);
+--  try {
+--    const analysis = JSON.parse(analysisJson);
+--
+--    // Auto-detect category based on AI analysis
+--    let category: ProductCategory = 'apparel';
+--    const typeText = (analysis.productType || analysis.type || '').toLowerCase();
+--
+--    if (typeText.match(/sofa|chair|table|lamp|decor|furniture|kitchenware|bed/)) {
+--      category = 'home';
+--    } else if (typeText.match(/electronics|gadget|watch|phone|tool|automotive|sports/)) {
+--      category = 'hardlines';
+--    }
+--
+--    return {
+--      category,
+--      type: analysis.productType || analysis.type,
+--      colorDescription: analysis.color,
+--      material: analysis.material,
+--      finish: analysis.finish,
+--    };
+--  } catch {
+--    return { category: 'apparel' }; // Fallback
+--  }
+--}
+--
+--// ── Risk analysis ────────────────────────────────────────────────────
+--
+--async function identifyRisks(analysisJson: string): Promise<RiskProfile> {
+--  const response = await getAI().models.generateContent({
+--    model: TEXT_MODEL,
+--    contents: [{ parts: [{ text: applyRepetition(buildRiskAnalysisPrompt(analysisJson)) }] }],
+--    config: { responseModalities: ['TEXT'] },
+--  });
+--
+--  const text = extractText(response);
+--  try {
+--    const parsed = JSON.parse(cleanJson(text));
+--    return {
+--      flags: Array.isArray(parsed.flags) ? parsed.flags : [],
+--      descriptions: parsed.descriptions ?? {},
+--      constraintOverrides: Array.isArray(parsed.constraintOverrides) ? parsed.constraintOverrides : [],
+--    };
+--  } catch {
+--    return { flags: [], descriptions: {}, constraintOverrides: [] };
+--  }
+--}
+--
+--function buildRiskConstraints(riskProfile: RiskProfile): string {
+--  if (riskProfile.flags.length === 0) return '';
+--
+--  const constraints: string[] = [];
+--
+--  for (const flag of riskProfile.flags) {
+--    const staticConstraint = STATIC_RISK_CONSTRAINTS[flag];
+--    if (staticConstraint) {
+--      constraints.push(staticConstraint);
+--    }
+--  }
+--
+--  for (const override of riskProfile.constraintOverrides) {
+--    constraints.push(override);
+--  }
+--
+--  return `\n\nRISK-BASED CONSTRAINTS (high priority — failure to comply invalidates the image):\n${constraints.join('\n')}`;
+--}
+--
+--// ── Product QC (universal — returns full scores) ─────────────────────
+--
+--async function verifyProduct(
+--  originalBase64: string,
+--  originalMime: string,
+--  generatedBase64: string,
+--  generatedMime: string,
+--  analysisJson: string
+--): Promise<QCResult> {
+--  const response = await getAI().models.generateContent({
+--    model: TEXT_MODEL,
+--    contents: [{
+--      parts: [
+--        { text: applyRepetition(buildProductQualityCheckPrompt(analysisJson)) },
+--        { inlineData: { mimeType: originalMime, data: originalBase64 } },
+--        { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
+--      ],
+--    }],
+--    config: { responseModalities: ['TEXT'] },
+--  });
+--
+--  const text = extractText(response);
+--  try {
+--    const parsed = JSON.parse(cleanJson(text));
+--    return {
+--      scores: parsed.scores ?? {
+--        colorAccuracy: 10, configurationMatch: 10, componentCount: 10,
+--        proportionFidelity: 10, constructionDetails: 10,
+--        brandingPreservation: 10, overallFidelity: 10,
+--      },
+--      pass: parsed.pass ?? true,
+--      issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+--      recommendation: parsed.recommendation ?? 'approve',
+--    };
+--  } catch {
+--    return {
+--      scores: {
+--        colorAccuracy: 10, configurationMatch: 10, componentCount: 10,
+--        proportionFidelity: 10, constructionDetails: 10,
+--        brandingPreservation: 10, overallFidelity: 10,
+--      },
+--      pass: true,
+--      issues: [],
+--      recommendation: 'approve',
+--    };
+--  }
+--}
+--
+--// ── Garment-specific analysis (apparel on-figure only) ───────────────
+--
+--async function analyzeGarment(
+--  imageBase64: string,
+--  imageMimeType: string,
+--  additionalImages?: { base64: string; mimeType: string; label?: string }[]
+--): Promise<string> {
+--  const parts: Array<any> = [
+--    { text: applyRepetition(buildGarmentAnalysisPrompt()) },
+--    { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
+--  ];
+--  if (additionalImages) {
+--    additionalImages.forEach(img => {
+--      parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+--    });
+--  }
+--
+--  const response = await getAI().models.generateContent({
+--    model: TEXT_MODEL,
+--    contents: [{ parts }],
+--    config: { responseModalities: ['TEXT'] },
+--  });
+--
+--  const text = extractText(response);
+--  if (!text) throw new Error('Garment analysis failed.');
+--  return cleanJson(text);
+--}
+--
+--async function checkGarmentQuality(
+--  originalBase64: string,
+--  originalMime: string,
+--  generatedBase64: string,
+--  generatedMime: string,
+--  analysisJson: string
+--): Promise<QCResult> {
+--  const response = await getAI().models.generateContent({
+--    model: TEXT_MODEL,
+--    contents: [{
+--      parts: [
+--        { text: applyRepetition(buildGarmentQCPrompt(analysisJson)) },
+--        { inlineData: { mimeType: originalMime, data: originalBase64 } },
+--        { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
+--      ],
+--    }],
+--    config: { responseModalities: ['TEXT'] },
+--  });
+--
+--  const text = extractText(response);
+--  try {
+--    const parsed = JSON.parse(cleanJson(text));
+--    return {
+--      scores: parsed.scores ?? {
+--        colorAccuracy: 10, graphicPreservation: 10,
+--        silhouetteMatch: 10, textureMatch: 10, overallFidelity: 10,
+--      },
+--      pass: parsed.pass ?? true,
+--      issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+--      recommendation: parsed.recommendation ?? 'approve',
+--    };
+--  } catch {
+--    return {
+--      scores: {
+--        colorAccuracy: 10, graphicPreservation: 10,
+--        silhouetteMatch: 10, textureMatch: 10, overallFidelity: 10,
+--      },
+--      pass: true,
+--      issues: [],
+--      recommendation: 'approve',
+--    };
+--  }
+--}
+--
+--// ── Targeted retry constraint builder ────────────────────────────────
+--
+--// buildTargetedRetryConstraints removed
+--
+--// ── Composite score calculation ──────────────────────────────────────
+-+// ── Composite score (browser-only — requires Canvas API via computePixelQC) ───
+- 
+- function computeCompositeScore(
+-   semanticScores: QCScores,
+-@@ -407,418 +21,114 @@ function computeCompositeScore(
+-     'hardlines-in-context',
+-   ];
+-   const semanticWeight = bgChangesModes.includes(mode) ? 0.8 : 0.6;
+--  const pixelWeight = 1 - semanticWeight;
+--
+--  return Math.round(semanticAvg * semanticWeight + pixelAvg * pixelWeight);
+-+  return Math.round(semanticAvg * semanticWeight + pixelAvg * (1 - semanticWeight));
+- }
+- 
+--// ── On-figure pipeline (apparel only — specialized) ──────────────────
+-+// ── SSE reader (fetch-based, works with POST unlike EventSource) ───────────
+- 
+--async function generateOnFigure(
+--  req: ApparelGenerationRequest,
+--  onProgress: (step: string) => void
+--): Promise<GenerationResult> {
+--  let iterationCount = 1;
+--
+--  // Step 1: Garment-specific analysis
+--  onProgress('Analyzing garment details...');
+--  const analysisJson = await analyzeGarment(
+--    req.sourceImageBase64,
+--    req.sourceImageMimeType,
+--    req.additionalImages
+--  );
+--
+--  // Step 2: Risk analysis & Safety Valve
+--  onProgress('Assessing generation risks...');
+--  const riskProfile = await identifyRisks(analysisJson);
+--  const validationWarning = validateConfig(req, analysisJson);
+--
+--  // Step 3: Generate with analysis + risk constraints
+--  onProgress('Placing garment on model...');
+--  const basePrompt = buildOnFigurePrompt(req, analysisJson);
+--  let imageLabel = '';
+--  if (req.additionalImages && req.additionalImages.length > 0) {
+--    imageLabel = `\n\nMULTIPLE REFERENCE IMAGES PROVIDED:
+--- Image 1 (primary): Front/main view of the product
+--${req.additionalImages.map((img, i) => `- Image ${i + 2}${img.label ? ` (${img.label})` : ''}: Additional reference angle`).join('\n')}
+--Use ALL reference images to ensure maximum fidelity. Every detail visible in any reference must be preserved.`;
+--  }
+--  const prompt = basePrompt + buildRiskConstraints(riskProfile) + imageLabel;
+--
+--  const generateResponse = await getAI().models.generateContent({
+--    model: IMAGE_MODEL,
+--    contents: [{
+--      parts: buildContentParts(prompt, req),
+--    }],
+--    config: {
+--      systemInstruction: SYSTEM_INSTRUCTION,
+--      responseModalities: ['TEXT', 'IMAGE'],
+--    },
+--  });
+--
+--  const imagePart = generateResponse.candidates?.[0]?.content?.parts?.find(
+--    (p: any) => p.inlineData?.mimeType?.startsWith('image/')
+--  );
+--
+--  if (!imagePart?.inlineData) throw new Error('Generation failed.');
+--
+--  let generatedBase64 = imagePart.inlineData.data ?? '';
+--  let generatedMime = imagePart.inlineData.mimeType ?? 'image/png';
+-+async function* readSSE(response: Response): AsyncGenerator<any> {
+-+  const reader = response.body!.getReader();
+-+  const decoder = new TextDecoder();
+-+  let buffer = '';
+- 
+--  // Step 4: Garment-specific QC
+--  onProgress('Checking garment accuracy...');
+--  const qc = await checkGarmentQuality(
+--    req.sourceImageBase64, req.sourceImageMimeType,
+--    generatedBase64, generatedMime,
+--    analysisJson
+--  );
+--
+--  // Step 5: Iterative refinement loop — keep editing until QC passes or cap hit
+--  let finalQc = qc;
+--  let previousScore = finalQc.scores.overallFidelity ?? 0;
+--
+--  while (!finalQc.pass && finalQc.issues.length > 0 && iterationCount <= MAX_EDIT_RETRIES) {
+--    const currentScore = finalQc.scores.overallFidelity ?? 0;
+--
+--    // Stagnation guard: stop if score didn't improve by ≥ 3 (except first retry)
+--    if (iterationCount > 1 && currentScore < previousScore + 3) {
+--      onProgress(`Score stagnated at ${currentScore}/10 — stopping refinement.`);
+--      break;
+--    }
+--    previousScore = currentScore;
+--
+--    const failedDimension = finalQc.issues[0] ?? 'quality issues';
+--    onProgress(`Refinement ${iterationCount}/${MAX_EDIT_RETRIES}: fixing ${failedDimension}...`);
+--
+--    const editPrompt = buildEditPrompt(finalQc, analysisJson, prompt);
+--
+--    const editParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
+--      { text: editPrompt },
+--      { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
+--      { inlineData: { mimeType: req.sourceImageMimeType, data: req.sourceImageBase64 } },
+--    ];
+--    if (req.additionalImages && req.additionalImages.length > 0) {
+--      for (const img of req.additionalImages) {
+--        editParts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+--      }
+-+  while (true) {
+-+    const { done, value } = await reader.read();
+-+    if (done) break;
+-+    buffer += decoder.decode(value, { stream: true });
+-+    const parts = buffer.split('\n\n');
+-+    buffer = parts.pop() ?? '';
+-+    for (const part of parts) {
+-+      if (!part.startsWith('data: ')) continue;
+-+      try { yield JSON.parse(part.slice(6)); } catch { /* skip malformed event */ }
+-     }
+--
+--    const retryResponse = await getAI().models.generateContent({
+--      model: IMAGE_MODEL,
+--      contents: [{ parts: editParts }],
+--      config: {
+--        systemInstruction: SYSTEM_INSTRUCTION,
+--        responseModalities: ['TEXT', 'IMAGE'],
+--      },
+--    });
+--
+--    const retryPart = retryResponse.candidates?.[0]?.content?.parts?.find(
+--      (p: any) => p.inlineData?.mimeType?.startsWith('image/')
+--    );
+--
+--    if (!retryPart?.inlineData) break; // Edit API didn't return an image — stop
+--
+--    generatedBase64 = retryPart.inlineData.data ?? '';
+--    generatedMime = retryPart.inlineData.mimeType ?? 'image/png';
+--
+--    iterationCount++;
+--
+--    onProgress(`Re-checking after refinement ${iterationCount - 1}...`);
+--    finalQc = await checkGarmentQuality(
+--      req.sourceImageBase64, req.sourceImageMimeType,
+--      generatedBase64, generatedMime,
+--      analysisJson
+--    );
+-   }
+--
+--  // Step 6: Pixel QC
+--  onProgress('Computing pixel-level fidelity...');
+--  const pixelQCScores = await computePixelQC(
+--    req.sourceImageBase64, req.sourceImageMimeType,
+--    generatedBase64, generatedMime
+--  );
+--
+--  const compositeScore = computeCompositeScore(
+--    finalQc.scores,
+--    pixelQCScores,
+--    req.mode
+--  );
+--
+--  return {
+--    id: crypto.randomUUID(),
+--    imageBase64: generatedBase64,
+--    mimeType: generatedMime,
+--    request: req,
+--    timestamp: Date.now(),
+--    analysisText: analysisJson,
+--    riskProfile,
+--    qcScores: finalQc.scores,
+--    qcPass: finalQc.pass,
+--    qcIssues: finalQc.issues,
+--    pixelQCScores,
+--    compositeScore,
+--    iterationCount,
+--    validationWarning,
+--  };
+- }
+- 
+--// ── Universal pipeline (all modes except apparel on-figure) ──────────
+-+// ── Generate ───────────────────────────────────────────────────────────────
+- 
+- export async function generate(
+-   req: GenerationRequest,
+--  onProgress: (step: string) => void = () => { }
+-+  onProgress: (step: string) => void = () => {}
+- ): Promise<GenerationResult> {
+--  if (req.category === 'apparel' && req.mode === 'on-figure') {
+--    return generateOnFigure(req, onProgress);
+--  }
+--
+--  let iterationCount = 1;
+--
+--  // Step 1: Universal product analysis
+--  onProgress('Analyzing product details...');
+--  const analysisJson = await analyzeProduct(
+--    req.sourceImageBase64,
+--    req.sourceImageMimeType,
+--    req.additionalImages
+--  );
+--
+--  // Step 2: Risk analysis & Safety Valve
+--  onProgress('Assessing generation risks...');
+--  const riskProfile = await identifyRisks(analysisJson);
+--  const validationWarning = validateConfig(req, analysisJson);
+--
+--  // Step 3: Build mode-specific prompt + inject analysis + risk constraints
+--  onProgress('Generating high-fidelity product photo...');
+--
+--  const customInstructions = req.category === 'apparel' ? req.garment.customInstructions :
+--    req.category === 'home' ? req.product.customInstructions :
+--      req.product.customInstructions;
+-+  const response = await fetch('/api/pipeline', {
+-+    method: 'POST',
+-+    headers: { 'Content-Type': 'application/json' },
+-+    body: JSON.stringify(req),
+-+  });
+- 
+--  const modePrompt = buildPrompt(req);
+--  let imageLabel = '';
+--  if (req.additionalImages && req.additionalImages.length > 0) {
+--    imageLabel = `\n\nMULTIPLE REFERENCE IMAGES PROVIDED:
+--- Image 1 (primary): Front/main view of the product
+--${req.additionalImages.map((img, i) => `- Image ${i + 2}${img.label ? ` (${img.label})` : ''}: Additional reference angle`).join('\n')}
+--Use ALL reference images to ensure maximum fidelity. Every detail visible in any reference must be preserved.`;
+-+  if (!response.ok) {
+-+    const text = await response.text();
+-+    throw new Error(`Pipeline error (${response.status}): ${text}`);
+-   }
+- 
+--  const prompt = `${modePrompt}
+--
+--PRODUCT ANALYSIS (verified ground truth extracted from the reference image — do not deviate from this):
+--${analysisJson}
+--
+--${customInstructions ? `STYLING NOTES / CUSTOM INSTRUCTIONS:\n${customInstructions}\n` : ''}\
+--REFERENCE IMAGE: Attached. The analysis above was extracted from this reference.${imageLabel}
+--If any discrepancy between analysis text and the image, the image is the source of truth.
+--Use this analysis as a checklist: every detail listed must be preserved in the output.${buildRiskConstraints(riskProfile)}`;
+--
+--  const generateResponse = await getAI().models.generateContent({
+--    model: IMAGE_MODEL,
+--    contents: [{
+--      parts: buildContentParts(prompt, req),
+--    }],
+--    config: {
+--      systemInstruction: SYSTEM_INSTRUCTION,
+--      responseModalities: ['TEXT', 'IMAGE'],
+--    },
+--  });
+-+  let serverResult: any = null;
+- 
+--  const imagePart = generateResponse.candidates?.[0]?.content?.parts?.find(
+--    (p: any) => p.inlineData?.mimeType?.startsWith('image/')
+--  );
+--
+--  if (!imagePart?.inlineData) throw new Error('Generation failed.');
+-+  for await (const event of readSSE(response)) {
+-+    if (event.type === 'progress') onProgress(event.step);
+-+    else if (event.type === 'result') serverResult = event.payload;
+-+    else if (event.type === 'error') throw new Error(event.message);
+-+  }
+- 
+--  let generatedBase64 = imagePart.inlineData.data ?? '';
+--  let generatedMime = imagePart.inlineData.mimeType ?? 'image/png';
+-+  if (!serverResult) throw new Error('No result received from pipeline.');
+- 
+--  // Step 4: Universal quality check
+--  onProgress('Verifying product accuracy against reference...');
+--  const qc = await verifyProduct(
+-+  onProgress('Computing pixel-level fidelity...');
+-+  const pixelQCScores = await computePixelQC(
+-     req.sourceImageBase64, req.sourceImageMimeType,
+--    generatedBase64, generatedMime,
+--    analysisJson
+-+    serverResult.imageBase64, serverResult.mimeType
+-   );
+-+  const compositeScore = computeCompositeScore(serverResult.qcScores, pixelQCScores, req.mode);
+- 
+--  // Step 5: Iterative refinement loop — keep editing until QC passes or cap hit
+--  let finalQc = qc;
+--  let previousScore = finalQc.scores.overallFidelity ?? 0;
+--
+--  while (!finalQc.pass && finalQc.issues.length > 0 && iterationCount <= MAX_EDIT_RETRIES) {
+--    const currentScore = finalQc.scores.overallFidelity ?? 0;
+--
+--    // Stagnation guard: stop if score didn't improve by ≥ 3 (except first retry)
+--    if (iterationCount > 1 && currentScore < previousScore + 3) {
+--      onProgress(`Score stagnated at ${currentScore}/10 — stopping refinement.`);
+--      break;
+--    }
+--    previousScore = currentScore;
+--
+--    const failedDimension = finalQc.issues[0] ?? 'quality issues';
+--    onProgress(`Auto-refining ${iterationCount}/${MAX_EDIT_RETRIES}: fixing ${failedDimension}...`);
+--
+--    const editPrompt = buildEditPrompt(finalQc, analysisJson, prompt);
+--
+--    const editParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
+--      { text: editPrompt },
+--      { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
+--      { inlineData: { mimeType: req.sourceImageMimeType, data: req.sourceImageBase64 } },
+--    ];
+--    if (req.additionalImages && req.additionalImages.length > 0) {
+--      for (const img of req.additionalImages) {
+--        editParts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+--      }
+--    }
+--
+--    const retryResponse = await getAI().models.generateContent({
+--      model: IMAGE_MODEL,
+--      contents: [{ parts: editParts }],
+--      config: {
+--        systemInstruction: SYSTEM_INSTRUCTION,
+--        responseModalities: ['TEXT', 'IMAGE'],
+--      },
+--    });
+--
+--    const retryPart = retryResponse.candidates?.[0]?.content?.parts?.find(
+--      (p: any) => p.inlineData?.mimeType?.startsWith('image/')
+--    );
+--
+--    if (!retryPart?.inlineData) break;
+-+  return { ...serverResult, request: req, pixelQCScores, compositeScore };
+-+}
+- 
+--    generatedBase64 = retryPart.inlineData.data ?? '';
+--    generatedMime = retryPart.inlineData.mimeType ?? 'image/png';
+-+// ── Suggestions ────────────────────────────────────────────────────────────
+- 
+--    iterationCount++;
+-+export async function getSemanticSuggestions(
+-+  imageBase64: string,
+-+  imageMimeType: string
+-+): Promise<ProductSuggestions> {
+-+  const response = await fetch('/api/suggestions', {
+-+    method: 'POST',
+-+    headers: { 'Content-Type': 'application/json' },
+-+    body: JSON.stringify({ imageBase64, imageMimeType }),
+-+  });
+- 
+--    onProgress(`Re-checking after refinement ${iterationCount - 1}...`);
+--    finalQc = await verifyProduct(
+--      req.sourceImageBase64, req.sourceImageMimeType,
+--      generatedBase64, generatedMime,
+--      analysisJson
+--    );
+-+  if (!response.ok) {
+-+    const text = await response.text();
+-+    throw new Error(`Suggestions error (${response.status}): ${text}`);
+-   }
+- 
+--  // Step 6: Pixel QC
+--  onProgress('Computing pixel-level fidelity...');
+--  const pixelQCScores = await computePixelQC(
+--    req.sourceImageBase64, req.sourceImageMimeType,
+--    generatedBase64, generatedMime
+--  );
+--
+--  const compositeScore = computeCompositeScore(
+--    finalQc.scores,
+--    pixelQCScores,
+--    req.mode
+--  );
+--
+--  return {
+--    id: crypto.randomUUID(),
+--    imageBase64: generatedBase64,
+--    mimeType: generatedMime,
+--    request: req,
+--    timestamp: Date.now(),
+--    analysisText: analysisJson,
+--    riskProfile,
+--    qcScores: finalQc.scores,
+--    qcPass: finalQc.pass,
+--    qcIssues: finalQc.issues,
+--    pixelQCScores,
+--    compositeScore,
+--    iterationCount,
+--    validationWarning,
+--  };
+-+  return response.json();
+- }
+- 
+--// ── Manual Edit / Inpainting Pipeline ────────────────────────────────
+-+// ── Manual inpaint ─────────────────────────────────────────────────────────
+- 
+- export async function manualInpaint(
+--  req: import('../types').ManualEditRequest,
+--  onProgress: (step: string) => void = () => { }
+-+  req: ManualEditRequest,
+-+  onProgress: (step: string) => void = () => {}
+- ): Promise<GenerationResult> {
+--  onProgress('Preparing masked edit...');
+--
+--  // The model supports native image editing if provided an original and a mask mask.
+--  const inpaintPrompt = `You are an expert AI photo retoucher. 
+--I am providing you three images in this exact order:
+--1. [IMAGE 1]: A black-and-white MASK image. White areas are where you MUST make changes. Black areas MUST remain mathematically identical to the base image.
+--2. [IMAGE 2]: The base image to be edited.
+--3. [IMAGE 3]: The original reference photo (for context).
+-+  onProgress('Applying manual edit...');
+- 
+--INSTRUCTION: ${req.instruction}
+--
+--CRITICAL RULES:
+--1. Do NOT modify any pixels outside the white mask area. They must be locked.
+--2. Ensure the lighting, shadows, and textures in the edited area blend seamlessly with the unedited areas.
+--3. Do not apply any global filter, color grade, or background modifications outside the mask.
+--4. Base your edits on the instruction, but lock everything else.`;
+--
+--  const editParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
+--    { text: inpaintPrompt },
+--    { inlineData: { mimeType: 'image/png', data: req.maskImageBase64 } }, // Mask MUST be the first image for spatial recognition
+--    { inlineData: { mimeType: req.generatedImageMimeType, data: req.generatedImageBase64 } },
+--    { inlineData: { mimeType: req.originalRequest.sourceImageMimeType, data: req.originalRequest.sourceImageBase64 } },
+--  ];
+--
+--  if (req.originalRequest.additionalImages && req.originalRequest.additionalImages.length > 0) {
+--    for (const img of req.originalRequest.additionalImages) {
+--      editParts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+--    }
+--  }
+--
+--  onProgress('Applying edits...');
+--  const editResponse = await getAI().models.generateContent({
+--    model: IMAGE_MODEL,
+--    contents: [{ parts: editParts }],
+--    config: {
+--      systemInstruction: SYSTEM_INSTRUCTION,
+--      responseModalities: ['TEXT', 'IMAGE'],
+--    },
+-+  const response = await fetch('/api/manual-edit', {
+-+    method: 'POST',
+-+    headers: { 'Content-Type': 'application/json' },
+-+    body: JSON.stringify(req),
+-   });
+- 
+--  const editedPart = editResponse.candidates?.[0]?.content?.parts?.find(
+--    (p: any) => p.inlineData?.mimeType?.startsWith('image/')
+--  );
+--
+--  if (!editedPart?.inlineData) throw new Error('Edit failed.');
+--
+--  const finalBase64 = editedPart.inlineData.data ?? '';
+--  const finalMime = editedPart.inlineData.mimeType ?? 'image/png';
+-+  if (!response.ok) {
+-+    const text = await response.text();
+-+    throw new Error(`Manual edit failed (${response.status}): ${text}`);
+-+  }
+- 
+--  onProgress('Verifying edit fidelity...');
+--
+--  // Rerun QC to ensure the new image is scored correctly
+--  // We skip Garment vs Product check here and just use the universal verifyProduct
+--  const newQc = await verifyProduct(
+--    req.originalRequest.sourceImageBase64, req.originalRequest.sourceImageMimeType,
+--    finalBase64, finalMime,
+--    "{}" // Empty summary check because it's a manual override
+--  );
+-+  const serverResult = await response.json();
+-+  if (serverResult.error) throw new Error(serverResult.error);
+- 
+-+  onProgress('Computing pixel-level fidelity...');
+-   const pixelQCScores = await computePixelQC(
+-     req.originalRequest.sourceImageBase64, req.originalRequest.sourceImageMimeType,
+--    finalBase64, finalMime
+--  );
+--
+--  const compositeScore = computeCompositeScore(
+--    newQc.scores,
+--    pixelQCScores,
+--    req.originalRequest.mode
+-+    serverResult.imageBase64, serverResult.mimeType
+-   );
+-+  const compositeScore = computeCompositeScore(serverResult.qcScores, pixelQCScores, req.originalRequest.mode);
+- 
+--  return {
+--    id: crypto.randomUUID(),
+--    imageBase64: finalBase64,
+--    mimeType: finalMime,
+--    request: req.originalRequest,
+--    timestamp: Date.now(),
+--    analysisText: 'Manual Edit Override',
+--    riskProfile: { flags: [], descriptions: {}, constraintOverrides: [] },
+--    qcScores: newQc.scores,
+--    qcPass: newQc.pass,
+--    qcIssues: newQc.issues,
+--    pixelQCScores,
+--    compositeScore,
+--    iterationCount: 1, // Manual edit doesn't count towards auto-iterations
+--  };
+-+  return { ...serverResult, request: req.originalRequest, pixelQCScores, compositeScore };
+- }
+-diff --git a/vite.config.ts b/vite.config.ts
+-index c676acd..86b4e62 100644
+---- a/vite.config.ts
+-+++ b/vite.config.ts
+-@@ -1,10 +1,12 @@
+- import { defineConfig } from 'vite'
+- import react from '@vitejs/plugin-react'
+- import tailwindcss from '@tailwindcss/vite'
+-+import { vertexProxy } from './src/server/vertexProxy'
+- 
+- export default defineConfig({
+-   plugins: [
+-     react(),
+-     tailwindcss(),
+-+    vertexProxy()
+-   ],
+- })
+diff --git a/src/hooks/useGeneration.ts b/src/hooks/useGeneration.ts
+index 260ae42..505ec35 100644
+--- a/src/hooks/useGeneration.ts
++++ b/src/hooks/useGeneration.ts
+@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
+ import { GenerationRequest, GenerationResult, GenerationState, HistoryEntry } from '../types';
+ import { generate, getSemanticSuggestions, manualInpaint } from '../services/geminiService';
+ import { saveGeneration, generateThumbnail } from '../services/telemetry';
++import { extractColorPalette } from '../services/colorExtractor';
  
--  // Step 4: Universal quality check
--  onProgress('Verifying product accuracy against reference...');
--  const qc = await verifyProduct(
-+  onProgress('Computing pixel-level fidelity...');
-+  const pixelQCScores = await computePixelQC(
-     req.sourceImageBase64, req.sourceImageMimeType,
--    generatedBase64, generatedMime,
--    analysisJson
-+    serverResult.imageBase64, serverResult.mimeType
-   );
-+  const compositeScore = computeCompositeScore(serverResult.qcScores, pixelQCScores, req.mode);
+ async function saveToHistory(result: GenerationResult): Promise<void> {
+   const thumb = await generateThumbnail(result.imageBase64, result.mimeType);
+@@ -42,7 +43,11 @@ export function useGeneration() {
+     setState({ status: 'generating', progress: 'Starting...' });
  
--  // Step 5: Iterative refinement loop — keep editing until QC passes or cap hit
--  let finalQc = qc;
--  let previousScore = finalQc.scores.overallFidelity ?? 0;
+     try {
+-      const result = await generate(req, (progress) => {
++      const extractedColors = await extractColorPalette(
++        req.sourceImageBase64, req.sourceImageMimeType
++      ).catch(() => undefined);
++
++      const result = await generate({ ...req, extractedColors }, (progress) => {
+         setState((s) => ({ ...s, progress }));
+       });
+ 
+@@ -103,7 +108,8 @@ export function useGeneration() {
+       return suggestions;
+     } catch (error) {
+       console.warn('Failed to get suggestions:', error);
+-      setState(s => ({ ...s, status: 'idle' }));
++      // Set a fallback so the useEffect condition (!state.suggestions) stops re-firing
++      setState(s => ({ ...s, status: 'idle', suggestions: { category: 'apparel' } }));
+     }
+   }, []);
+ 
+diff --git a/src/prompts/editPrompt.ts b/src/prompts/editPrompt.ts
+index 196edea..c2c17b2 100644
+--- a/src/prompts/editPrompt.ts
++++ b/src/prompts/editPrompt.ts
+@@ -59,5 +59,10 @@ EDITING RULES:
+ 4. Focus surgical corrections on the failing dimensions only.
+ 5. The original reference image(s) is the source of truth for what the product should look like structurally.
+ 
++POSITIONAL FIXES — USE ANALYSIS AS GROUND TRUTH:
++When fixing any positional issue, use the ORIGINAL PRODUCT ANALYSIS above to determine
++the correct position. The analysis contains the exact structural positions as extracted
++from the reference. Do not guess — the analysis is the source of truth for WHERE elements belong.
++
+ Fix ONLY the listed issues. Everything else must remain identical.`;
+ }
+diff --git a/src/prompts/onFigurePrompt.ts b/src/prompts/onFigurePrompt.ts
+index a9dba0a..0df956c 100644
+--- a/src/prompts/onFigurePrompt.ts
++++ b/src/prompts/onFigurePrompt.ts
+@@ -23,10 +23,17 @@ Return a JSON object with exactly these fields:
+     {
+       "type": "logo/text/print/embroidery/none",
+       "description": "exact description of graphic",
+-      "position": "exact position on garment",
++      "position": "quadrant + percentage from edge — e.g. 'upper-left, ~12% from left, ~8% from top'",
+       "colors": "colors in the graphic"
+     }
+   ],
++  "structuralDecorativeElements": [
++    {
++      "type": "ribbon | bow | patch | trim | applique | button | zipper-pull | tassel | other",
++      "description": "exact description of the element",
++      "position": "quadrant + percentage from nearest seam or edge — e.g. 'upper-left shoulder seam, ~5% from left edge, ~3% from top'"
++    }
++  ],
+   "constructionDetails": "visible stitching, seams, hardware",
+   "overallStyle": "casual/smart-casual/formal/streetwear/athletic"
+ }
+diff --git a/src/prompts/productAnalysisPrompt.ts b/src/prompts/productAnalysisPrompt.ts
+index ca39499..2cbf205 100644
+--- a/src/prompts/productAnalysisPrompt.ts
++++ b/src/prompts/productAnalysisPrompt.ts
+@@ -47,6 +47,13 @@ If none: "None visible."
+ this specific product (e.g. "Asymmetric arm heights — left arm is 20% lower \
+ than right", "Distinctive cloud-like rounded edges with no sharp corners").
+ 
++11. STRUCTURAL DECORATIVE ELEMENTS: Any ribbons, bows, patches, appliques, \
++trims, tassels, or decorative attachments that are physically fixed to the product \
++at a specific location. For each element: describe it and give its EXACT position \
++as a quadrant plus approximate percentage from the nearest edge \
++(e.g. "upper-left, ~10% from left edge, ~5% from top"). \
++If none: return an empty array.
++
+ OUTPUT FORMAT (Strict JSON):
+ {
+   "productType": "specific product name with configuration",
+@@ -58,7 +65,14 @@ OUTPUT FORMAT (Strict JSON):
+   "proportions": "relative size relationships",
+   "constructionDetails": "joints, seams, hardware, stitching",
+   "branding": "logo positions or 'None visible'",
+-  "distinctiveFeatures": ["unique identifying characteristics"]
++  "distinctiveFeatures": ["unique identifying characteristics"],
++  "structuralDecorativeElements": [
++    {
++      "type": "ribbon | bow | patch | trim | applique | tassel | embroidery | other",
++      "description": "exact description of the element",
++      "position": "quadrant + percentage — e.g. 'upper-left, ~10% from left edge, ~5% from top'"
++    }
++  ]
+ }
+ 
+ Be extremely precise and exhaustive. This is ground truth — every detail you \
+diff --git a/src/prompts/riskAnalysisPrompt.ts b/src/prompts/riskAnalysisPrompt.ts
+index 9a7c962..890f5f8 100644
+--- a/src/prompts/riskAnalysisPrompt.ts
++++ b/src/prompts/riskAnalysisPrompt.ts
+@@ -19,6 +19,8 @@ RECOGNIZED RISK FLAGS — pick ALL that apply to this specific product:
+ - high_contrast_branding: Product has prominent branding/logos that must be exactly preserved
+ - multi_section_config: Product is modular or sectional with a specific configuration (L-shape, U-shape, etc.)
+ - curved_organic_shape: Product has flowing, organic curves that are easy to flatten or distort
++- color_sensitive: Product has subtle, nuanced, or easily-shifted colors (pastels, off-whites, muted tones, complex multicolor gradients) that AI models tend to enhance or shift toward more vivid versions
++- decorative_element_placement: Product has decorative structural elements (ribbons, bows, patches, appliques, trim, tassels) with FIXED positions that must not be displaced
+ 
+ For each flagged risk, write a SPECIFIC constraint sentence that should be added \
+ to the generation prompt to prevent that exact failure. Reference actual details \
+diff --git a/src/prompts/systemInstruction.ts b/src/prompts/systemInstruction.ts
+index a59b8b7..ba9aa9c 100644
+--- a/src/prompts/systemInstruction.ts
++++ b/src/prompts/systemInstruction.ts
+@@ -20,6 +20,11 @@ skin must show natural texture (pores, subtle imperfections). Fabric must \
+ respond to gravity and body tension with organic micro-wrinkles. No \
+ airbrushed, CGI, or digitally smoothed appearance. The result must be \
+ indistinguishable from a real photograph shot on professional equipment.
++7. TAG SUPPRESSION: Never render any visible clothing tags, care labels, \
++size labels, hang tags, or price stickers — even if they are visible in \
++the reference image. Product photography requires a clean, tag-free \
++presentation. Any tag or label attached to the garment must be omitted \
++from the output.
+ 
+ You produce commercial e-commerce photography that brands can use directly \
+ on their product pages, advertising, and marketing materials.`;
+diff --git a/src/server/vertexProxy.ts b/src/server/vertexProxy.ts
+deleted file mode 100644
+index 613bc8e..0000000
+--- a/src/server/vertexProxy.ts
++++ /dev/null
+@@ -1,96 +0,0 @@
+-import type { Plugin } from 'vite';
+-import { GoogleAuth } from 'google-auth-library';
+-import fs from 'fs';
+-import path from 'path';
 -
--  while (!finalQc.pass && finalQc.issues.length > 0 && iterationCount <= MAX_EDIT_RETRIES) {
--    const currentScore = finalQc.scores.overallFidelity ?? 0;
+-export function vertexProxy(): Plugin {
+-    return {
+-        name: 'vertex-proxy',
+-        configureServer(server) {
+-            server.middlewares.use(async (req, res, next) => {
+-                if (req.url === '/api/imagen' && req.method === 'POST') {
+-                    let body = '';
+-                    req.on('data', chunk => {
+-                        body += chunk.toString();
+-                    });
+-                    req.on('end', async () => {
+-                        try {
+-                            const { prompt, region = 'us-central1' } = JSON.parse(body);
 -
--    // Stagnation guard: stop if score didn't improve by ≥ 3 (except first retry)
--    if (iterationCount > 1 && currentScore < previousScore + 3) {
--      onProgress(`Score stagnated at ${currentScore}/10 — stopping refinement.`);
--      break;
--    }
--    previousScore = currentScore;
+-                            let auth;
+-                            const localKeyPath = path.resolve(process.cwd(), 'project-8835c244-6581-4347-820-f7a1d3360c86.json');
 -
--    const failedDimension = finalQc.issues[0] ?? 'quality issues';
--    onProgress(`Auto-refining ${iterationCount}/${MAX_EDIT_RETRIES}: fixing ${failedDimension}...`);
+-                            // Check if the physical JSON file is here (for local dev)
+-                            if (fs.existsSync(localKeyPath)) {
+-                                auth = new GoogleAuth({
+-                                    keyFile: localKeyPath,
+-                                    scopes: 'https://www.googleapis.com/auth/cloud-platform',
+-                                });
+-                            } else {
+-                                // Fallback (useful if we deploy exactly like this to Vercel with GOOGLE_APPLICATION_CREDENTIALS)
+-                                auth = new GoogleAuth({
+-                                    scopes: 'https://www.googleapis.com/auth/cloud-platform',
+-                                });
+-                            }
 -
--    const editPrompt = buildEditPrompt(finalQc, analysisJson, prompt);
+-                            let projectId = await auth.getProjectId().catch(() => null);
+-                            if (!projectId || projectId === 'lumina-app-488718') {
+-                                projectId = 'project-8835c244-6581-4347-820';
+-                            }
 -
--    const editParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
--      { text: editPrompt },
--      { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
--      { inlineData: { mimeType: req.sourceImageMimeType, data: req.sourceImageBase64 } },
--    ];
--    if (req.additionalImages && req.additionalImages.length > 0) {
--      for (const img of req.additionalImages) {
--        editParts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
--      }
--    }
+-                            const client = await auth.getClient();
+-                            const tokenResponse = await client.getAccessToken();
+-                            const token = tokenResponse.token;
 -
--    const retryResponse = await getAI().models.generateContent({
--      model: IMAGE_MODEL,
--      contents: [{ parts: editParts }],
--      config: {
--        systemInstruction: SYSTEM_INSTRUCTION,
--        responseModalities: ['TEXT', 'IMAGE'],
--      },
--    });
+-                            if (!token) throw new Error("Failed to get token from Application Default Credentials");
 -
--    const retryPart = retryResponse.candidates?.[0]?.content?.parts?.find(
--      (p: any) => p.inlineData?.mimeType?.startsWith('image/')
--    );
+-                            const modelId = 'imagen-3.0-generate-002';
+-                            const endpoint = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models/${modelId}:predict`;
 -
--    if (!retryPart?.inlineData) break;
-+  return { ...serverResult, request: req, pixelQCScores, compositeScore };
+-                            const response = await fetch(endpoint, {
+-                                method: 'POST',
+-                                headers: {
+-                                    'Authorization': `Bearer ${token}`,
+-                                    'Content-Type': 'application/json',
+-                                },
+-                                body: JSON.stringify({
+-                                    instances: [
+-                                        { prompt }
+-                                    ],
+-                                    parameters: {
+-                                        sampleCount: 1,
+-                                        aspectRatio: "1:1",
+-                                        outputOptions: {
+-                                            mimeType: "image/png"
+-                                        }
+-                                    }
+-                                })
+-                            });
+-
+-                            if (!response.ok) {
+-                                const errText = await response.text();
+-                                throw new Error(`Vertex AI API Error: ${errText}`);
+-                            }
+-
+-                            const data = await response.json();
+-                            if (data.predictions && data.predictions.length > 0) {
+-                                const base64Image = data.predictions[0].bytesBase64Encoded;
+-                                res.setHeader('Content-Type', 'application/json');
+-                                res.end(JSON.stringify({ imageBase64: base64Image, mimeType: 'image/png' }));
+-                            } else {
+-                                throw new Error("No predictions returned from Imagen 3");
+-                            }
+-                        } catch (error: any) {
+-                            console.error('Vertex Proxy Error:', error);
+-                            res.statusCode = 500;
+-                            res.setHeader('Content-Type', 'application/json');
+-                            res.end(JSON.stringify({ error: error.message }));
+-                        }
+-                    });
+-                    return;
+-                }
+-                next();
+-            });
+-        }
+-    };
+-}
+diff --git a/src/types/index.ts b/src/types/index.ts
+index c162b3a..1d474ff 100644
+--- a/src/types/index.ts
++++ b/src/types/index.ts
+@@ -107,6 +107,11 @@ export interface AdditionalImage {
+   label?: string; // 'back', 'detail', 'logo_closeup', etc.
+ }
+ 
++export interface ExtractedColorPalette {
++  colors: Array<{ hex: string; percentage: number }>;
++  dominantHex: string;
 +}
- 
--    generatedBase64 = retryPart.inlineData.data ?? '';
--    generatedMime = retryPart.inlineData.mimeType ?? 'image/png';
-+// ── Suggestions ────────────────────────────────────────────────────────────
- 
--    iterationCount++;
-+export async function getSemanticSuggestions(
-+  imageBase64: string,
-+  imageMimeType: string
-+): Promise<ProductSuggestions> {
-+  const response = await fetch('/api/suggestions', {
-+    method: 'POST',
-+    headers: { 'Content-Type': 'application/json' },
-+    body: JSON.stringify({ imageBase64, imageMimeType }),
-+  });
- 
--    onProgress(`Re-checking after refinement ${iterationCount - 1}...`);
--    finalQc = await verifyProduct(
--      req.sourceImageBase64, req.sourceImageMimeType,
--      generatedBase64, generatedMime,
--      analysisJson
--    );
-+  if (!response.ok) {
-+    const text = await response.text();
-+    throw new Error(`Suggestions error (${response.status}): ${text}`);
-   }
- 
--  // Step 6: Pixel QC
--  onProgress('Computing pixel-level fidelity...');
--  const pixelQCScores = await computePixelQC(
--    req.sourceImageBase64, req.sourceImageMimeType,
--    generatedBase64, generatedMime
--  );
--
--  const compositeScore = computeCompositeScore(
--    finalQc.scores,
--    pixelQCScores,
--    req.mode
--  );
--
--  return {
--    id: crypto.randomUUID(),
--    imageBase64: generatedBase64,
--    mimeType: generatedMime,
--    request: req,
--    timestamp: Date.now(),
--    analysisText: analysisJson,
--    riskProfile,
--    qcScores: finalQc.scores,
--    qcPass: finalQc.pass,
--    qcIssues: finalQc.issues,
--    pixelQCScores,
--    compositeScore,
--    iterationCount,
--    validationWarning,
--  };
-+  return response.json();
++
+ export interface BaseGenerationRequest {
+   aspectRatio: AspectRatio;
+   imageSize: ImageSize;
+@@ -114,6 +119,8 @@ export interface BaseGenerationRequest {
+   sourceImageMimeType: string;
+   additionalImages?: AdditionalImage[];
+   customInstructions?: string;
++  /** Pixel-accurate color palette extracted client-side before generation. */
++  extractedColors?: ExtractedColorPalette;
  }
  
--// ── Manual Edit / Inpainting Pipeline ────────────────────────────────
-+// ── Manual inpaint ─────────────────────────────────────────────────────────
+ export interface ApparelGenerationRequest extends BaseGenerationRequest {
+@@ -165,7 +172,9 @@ export type RiskFlag =
+   | 'complex_pattern'
+   | 'high_contrast_branding'
+   | 'multi_section_config'
+-  | 'curved_organic_shape';
++  | 'curved_organic_shape'
++  | 'color_sensitive'
++  | 'decorative_element_placement';
  
- export async function manualInpaint(
--  req: import('../types').ManualEditRequest,
--  onProgress: (step: string) => void = () => { }
-+  req: ManualEditRequest,
-+  onProgress: (step: string) => void = () => {}
- ): Promise<GenerationResult> {
--  onProgress('Preparing masked edit...');
--
--  // The model supports native image editing if provided an original and a mask mask.
--  const inpaintPrompt = `You are an expert AI photo retoucher. 
--I am providing you three images in this exact order:
--1. [IMAGE 1]: A black-and-white MASK image. White areas are where you MUST make changes. Black areas MUST remain mathematically identical to the base image.
--2. [IMAGE 2]: The base image to be edited.
--3. [IMAGE 3]: The original reference photo (for context).
-+  onProgress('Applying manual edit...');
- 
--INSTRUCTION: ${req.instruction}
--
--CRITICAL RULES:
--1. Do NOT modify any pixels outside the white mask area. They must be locked.
--2. Ensure the lighting, shadows, and textures in the edited area blend seamlessly with the unedited areas.
--3. Do not apply any global filter, color grade, or background modifications outside the mask.
--4. Base your edits on the instruction, but lock everything else.`;
--
--  const editParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
--    { text: inpaintPrompt },
--    { inlineData: { mimeType: 'image/png', data: req.maskImageBase64 } }, // Mask MUST be the first image for spatial recognition
--    { inlineData: { mimeType: req.generatedImageMimeType, data: req.generatedImageBase64 } },
--    { inlineData: { mimeType: req.originalRequest.sourceImageMimeType, data: req.originalRequest.sourceImageBase64 } },
--  ];
--
--  if (req.originalRequest.additionalImages && req.originalRequest.additionalImages.length > 0) {
--    for (const img of req.originalRequest.additionalImages) {
--      editParts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
--    }
--  }
--
--  onProgress('Applying edits...');
--  const editResponse = await getAI().models.generateContent({
--    model: IMAGE_MODEL,
--    contents: [{ parts: editParts }],
--    config: {
--      systemInstruction: SYSTEM_INSTRUCTION,
--      responseModalities: ['TEXT', 'IMAGE'],
--    },
-+  const response = await fetch('/api/manual-edit', {
-+    method: 'POST',
-+    headers: { 'Content-Type': 'application/json' },
-+    body: JSON.stringify(req),
-   });
- 
--  const editedPart = editResponse.candidates?.[0]?.content?.parts?.find(
--    (p: any) => p.inlineData?.mimeType?.startsWith('image/')
--  );
--
--  if (!editedPart?.inlineData) throw new Error('Edit failed.');
--
--  const finalBase64 = editedPart.inlineData.data ?? '';
--  const finalMime = editedPart.inlineData.mimeType ?? 'image/png';
-+  if (!response.ok) {
-+    const text = await response.text();
-+    throw new Error(`Manual edit failed (${response.status}): ${text}`);
-+  }
- 
--  onProgress('Verifying edit fidelity...');
--
--  // Rerun QC to ensure the new image is scored correctly
--  // We skip Garment vs Product check here and just use the universal verifyProduct
--  const newQc = await verifyProduct(
--    req.originalRequest.sourceImageBase64, req.originalRequest.sourceImageMimeType,
--    finalBase64, finalMime,
--    "{}" // Empty summary check because it's a manual override
--  );
-+  const serverResult = await response.json();
-+  if (serverResult.error) throw new Error(serverResult.error);
- 
-+  onProgress('Computing pixel-level fidelity...');
-   const pixelQCScores = await computePixelQC(
-     req.originalRequest.sourceImageBase64, req.originalRequest.sourceImageMimeType,
--    finalBase64, finalMime
--  );
--
--  const compositeScore = computeCompositeScore(
--    newQc.scores,
--    pixelQCScores,
--    req.originalRequest.mode
-+    serverResult.imageBase64, serverResult.mimeType
-   );
-+  const compositeScore = computeCompositeScore(serverResult.qcScores, pixelQCScores, req.originalRequest.mode);
- 
--  return {
--    id: crypto.randomUUID(),
--    imageBase64: finalBase64,
--    mimeType: finalMime,
--    request: req.originalRequest,
--    timestamp: Date.now(),
--    analysisText: 'Manual Edit Override',
--    riskProfile: { flags: [], descriptions: {}, constraintOverrides: [] },
--    qcScores: newQc.scores,
--    qcPass: newQc.pass,
--    qcIssues: newQc.issues,
--    pixelQCScores,
--    compositeScore,
--    iterationCount: 1, // Manual edit doesn't count towards auto-iterations
--  };
-+  return { ...serverResult, request: req.originalRequest, pixelQCScores, compositeScore };
- }
+ export interface RiskProfile {
+   flags: RiskFlag[];
 diff --git a/vite.config.ts b/vite.config.ts
-index c676acd..86b4e62 100644
+index 86b4e62..102dae4 100644
 --- a/vite.config.ts
 +++ b/vite.config.ts
-@@ -1,10 +1,12 @@
+@@ -1,12 +1,12 @@
  import { defineConfig } from 'vite'
  import react from '@vitejs/plugin-react'
  import tailwindcss from '@tailwindcss/vite'
-+import { vertexProxy } from './src/server/vertexProxy'
+-import { vertexProxy } from './src/server/vertexProxy'
++import { devApiProxy } from './src/server/devApiProxy'
  
  export default defineConfig({
    plugins: [
      react(),
      tailwindcss(),
-+    vertexProxy()
+-    vertexProxy()
++    devApiProxy(),
    ],
  })

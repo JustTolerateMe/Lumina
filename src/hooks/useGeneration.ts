@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { GenerationRequest, GenerationResult, GenerationState, HistoryEntry } from '../types';
 import { generate, getSemanticSuggestions, manualInpaint } from '../services/geminiService';
 import { saveGeneration, generateThumbnail } from '../services/telemetry';
+import { extractColorPalette } from '../services/colorExtractor';
+import { hashString } from '../utils/cryptoUtils';
 
 async function saveToHistory(result: GenerationResult): Promise<void> {
   const thumb = await generateThumbnail(result.imageBase64, result.mimeType);
@@ -42,9 +44,44 @@ export function useGeneration() {
     setState({ status: 'generating', progress: 'Starting...' });
 
     try {
-      const result = await generate(req, (progress) => {
-        setState((s) => ({ ...s, progress }));
-      });
+      // 1. Try to load cached analysis for this specific image to save ~7s on re-generations
+      const cacheKey = `lumina_analysis_${await hashString(req.sourceImageBase64)}`;
+      let cachedAnalysisText: string | undefined;
+      let cachedRiskProfile: any | undefined;
+
+      try {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          cachedAnalysisText = parsed.analysisText;
+          cachedRiskProfile = parsed.riskProfile;
+        }
+      } catch (e) {
+        console.warn('Failed to read analysis cache', e);
+      }
+
+      // 2. Extract pixel-accurate color palette client-side
+      const extractedColors = await extractColorPalette(
+        req.sourceImageBase64, req.sourceImageMimeType
+      ).catch(() => undefined);
+
+      // 3. Send generation request to Vercel API
+      const result = await generate(
+        { ...req, extractedColors, cachedAnalysisText, cachedRiskProfile },
+        (progress) => setState((s) => ({ ...s, progress }))
+      );
+
+      // 4. Save analysis to cache for future re-generations of this same image
+      if (result.analysisText && result.riskProfile) {
+        try {
+          sessionStorage.setItem(cacheKey, JSON.stringify({
+            analysisText: result.analysisText,
+            riskProfile: result.riskProfile,
+          }));
+        } catch (e) {
+          console.warn('Failed to write analysis cache', e);
+        }
+      }
 
       setState({ status: 'done', result });
 
@@ -103,7 +140,8 @@ export function useGeneration() {
       return suggestions;
     } catch (error) {
       console.warn('Failed to get suggestions:', error);
-      setState(s => ({ ...s, status: 'idle' }));
+      // Set a fallback so the useEffect condition (!state.suggestions) stops re-firing
+      setState(s => ({ ...s, status: 'idle', suggestions: { category: 'apparel' } }));
     }
   }, []);
 

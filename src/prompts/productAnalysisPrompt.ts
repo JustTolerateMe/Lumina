@@ -47,6 +47,13 @@ If none: "None visible."
 this specific product (e.g. "Asymmetric arm heights — left arm is 20% lower \
 than right", "Distinctive cloud-like rounded edges with no sharp corners").
 
+11. STRUCTURAL DECORATIVE ELEMENTS: Any ribbons, bows, patches, appliques, \
+trims, tassels, or decorative attachments that are physically fixed to the product \
+at a specific location. For each element: describe it and give its EXACT position \
+as a quadrant plus approximate percentage from the nearest edge \
+(e.g. "upper-left, ~10% from left edge, ~5% from top"). \
+If none: return an empty array.
+
 OUTPUT FORMAT (Strict JSON):
 {
   "productType": "specific product name with configuration",
@@ -58,7 +65,14 @@ OUTPUT FORMAT (Strict JSON):
   "proportions": "relative size relationships",
   "constructionDetails": "joints, seams, hardware, stitching",
   "branding": "logo positions or 'None visible'",
-  "distinctiveFeatures": ["unique identifying characteristics"]
+  "distinctiveFeatures": ["unique identifying characteristics"],
+  "structuralDecorativeElements": [
+    {
+      "type": "ribbon | bow | patch | trim | applique | tassel | embroidery | other",
+      "description": "exact description of the element",
+      "position": "quadrant + percentage — e.g. 'upper-left, ~10% from left edge, ~5% from top'"
+    }
+  ]
 }
 
 Be extremely precise and exhaustive. This is ground truth — every detail you \

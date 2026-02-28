@@ -59,5 +59,10 @@ EDITING RULES:
 4. Focus surgical corrections on the failing dimensions only.
 5. The original reference image(s) is the source of truth for what the product should look like structurally.
 
+POSITIONAL FIXES — USE ANALYSIS AS GROUND TRUTH:
+When fixing any positional issue, use the ORIGINAL PRODUCT ANALYSIS above to determine
+the correct position. The analysis contains the exact structural positions as extracted
+from the reference. Do not guess — the analysis is the source of truth for WHERE elements belong.
+
 Fix ONLY the listed issues. Everything else must remain identical.`;
 }

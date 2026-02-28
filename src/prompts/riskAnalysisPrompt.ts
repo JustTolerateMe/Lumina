@@ -19,6 +19,8 @@ RECOGNIZED RISK FLAGS — pick ALL that apply to this specific product:
 - high_contrast_branding: Product has prominent branding/logos that must be exactly preserved
 - multi_section_config: Product is modular or sectional with a specific configuration (L-shape, U-shape, etc.)
 - curved_organic_shape: Product has flowing, organic curves that are easy to flatten or distort
+- color_sensitive: Product has subtle, nuanced, or easily-shifted colors (pastels, off-whites, muted tones, complex multicolor gradients) that AI models tend to enhance or shift toward more vivid versions
+- decorative_element_placement: Product has decorative structural elements (ribbons, bows, patches, appliques, trim, tassels) with FIXED positions that must not be displaced
 
 For each flagged risk, write a SPECIFIC constraint sentence that should be added \
 to the generation prompt to prevent that exact failure. Reference actual details \

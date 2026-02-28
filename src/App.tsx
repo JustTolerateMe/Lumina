@@ -23,8 +23,9 @@ import {
   ModelConfig, LifestyleScene, HomeRoomStyle, HardlinesContext,
   CampaignStyle, FlatlayStyle, AspectRatio, ImageSize, GenerationRequest, BrandProfile
 } from './types';
-import { Sparkles, Shirt, Home, Smartphone } from 'lucide-react';
+import { Sparkles, Shirt, Home, Smartphone, Bot } from 'lucide-react';
 import { SecretBlueprint } from './components/SecretBlueprint';
+import { ProcessSidebar } from './components/output/ProcessSidebar';
 
 export default function App() {
   const { state, generateImage, reset, getSuggestions, applyManualEdit } = useGeneration();
@@ -39,11 +40,18 @@ export default function App() {
   } = useUpload();
   const { entries: historyEntries, loading: historyLoading, refresh: refreshHistory, clearHistory } = useHistory();
 
-  // Category & Mode State
   const [category, setCategory] = useState<ProductCategory>('apparel');
   const [mode, setMode] = useState<GenerationMode>('studio');
   const [showBlueprint, setShowBlueprint] = useState(false);
+  const [showProcessSidebar, setShowProcessSidebar] = useState(false);
   const [, setSecretBuffer] = useState('');
+
+  // Auto-open process sidebar when generating starts
+  useEffect(() => {
+    if (state.status === 'analyzing' || state.status === 'generating') {
+      setShowProcessSidebar(true);
+    }
+  }, [state.status]);
 
   // Secret trigger: type 'blueprint' anytime
   useEffect(() => {
@@ -190,11 +198,21 @@ export default function App() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <Header>
-        <GenerationHistory
-          entries={historyEntries}
-          loading={historyLoading}
-          onClear={clearHistory}
-        />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowProcessSidebar(!showProcessSidebar)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${showProcessSidebar ? 'bg-zinc-800 border-zinc-700 text-zinc-300' : 'bg-transparent border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}
+          >
+            <Bot size={16} />
+            <span className="hidden sm:inline">AI Process</span>
+          </button>
+          <div className="w-px h-6 bg-zinc-800 mx-1" />
+          <GenerationHistory
+            entries={historyEntries}
+            loading={historyLoading}
+            onClear={clearHistory}
+          />
+        </div>
       </Header>
 
       <div className="flex h-[calc(100vh-64px)]">
@@ -334,6 +352,12 @@ export default function App() {
             onManualEdit={applyManualEdit}
           />
         </main>
+
+        <ProcessSidebar
+          state={state}
+          isOpen={showProcessSidebar}
+          onClose={() => setShowProcessSidebar(false)}
+        />
       </div>
 
       <SecretBlueprint

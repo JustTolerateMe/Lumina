@@ -1,4 +1,6 @@
-export function buildProductQualityCheckPrompt(analysisJson: string): string {
+export function buildProductQualityCheckPrompt(analysisJson: string, mode: string): string {
+  const passScore = (mode === 'studio' || mode === 'flatlay' || mode.includes('clean-cut')) ? 8 : 7;
+
   return `You are a senior Quality Assurance specialist for commercial product photography. \
 Compare Image 1 (original reference) against Image 2 (generated result).
 
@@ -47,6 +49,6 @@ Return JSON only:
   "recommendation": "approve/regenerate"
 }
 
-PASS threshold: ALL scores >= 7 AND configurationMatch >= 8.
-FAIL: any score < 7 OR configurationMatch < 8 OR any component missing.`;
+PASS threshold: ALL scores >= ${passScore} AND configurationMatch >= 8.
+FAIL: any score < ${passScore} OR configurationMatch < 8 OR any component missing.`;
 }

@@ -20,6 +20,11 @@ skin must show natural texture (pores, subtle imperfections). Fabric must \
 respond to gravity and body tension with organic micro-wrinkles. No \
 airbrushed, CGI, or digitally smoothed appearance. The result must be \
 indistinguishable from a real photograph shot on professional equipment.
+7. TAG SUPPRESSION: Never render any visible clothing tags, care labels, \
+size labels, hang tags, or price stickers — even if they are visible in \
+the reference image. Product photography requires a clean, tag-free \
+presentation. Any tag or label attached to the garment must be omitted \
+from the output.
 
 You produce commercial e-commerce photography that brands can use directly \
 on their product pages, advertising, and marketing materials.`;

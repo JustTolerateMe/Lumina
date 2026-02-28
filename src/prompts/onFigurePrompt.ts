@@ -23,8 +23,15 @@ Return a JSON object with exactly these fields:
     {
       "type": "logo/text/print/embroidery/none",
       "description": "exact description of graphic",
-      "position": "exact position on garment",
+      "position": "quadrant + percentage from edge — e.g. 'upper-left, ~12% from left, ~8% from top'",
       "colors": "colors in the graphic"
+    }
+  ],
+  "structuralDecorativeElements": [
+    {
+      "type": "ribbon | bow | patch | trim | applique | button | zipper-pull | tassel | other",
+      "description": "exact description of the element",
+      "position": "quadrant + percentage from nearest seam or edge — e.g. 'upper-left shoulder seam, ~5% from left edge, ~3% from top'"
     }
   ],
   "constructionDetails": "visible stitching, seams, hardware",
@@ -100,7 +107,9 @@ Produce a professional commercial on-figure fashion photograph that could \
 be published directly on a brand's product detail page.`;
 }
 
-export function buildQualityCheckPrompt(analysisJson: string): string {
+export function buildQualityCheckPrompt(analysisJson: string, mode: string): string {
+  const passScore = (mode === 'studio' || mode === 'flatlay' || mode.includes('clean-cut')) ? 8 : 7;
+
   return `Compare the two images:
 - Image 1: Original garment reference (flatlay)
 - Image 2: Generated on-figure result
@@ -132,6 +141,6 @@ Return JSON only:
   "recommendation": "approve/regenerate"
 }
 
-PASS threshold: all scores >= 7, recommendation = "approve"
-FAIL: any score < 7 OR any graphic modification detected`;
+PASS threshold: all scores >= ${passScore}, recommendation = "approve"
+FAIL: any score < ${passScore} OR any graphic modification detected`;
 }

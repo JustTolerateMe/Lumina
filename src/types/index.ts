@@ -107,6 +107,11 @@ export interface AdditionalImage {
   label?: string; // 'back', 'detail', 'logo_closeup', etc.
 }
 
+export interface ExtractedColorPalette {
+  colors: Array<{ hex: string; percentage: number }>;
+  dominantHex: string;
+}
+
 export interface BaseGenerationRequest {
   aspectRatio: AspectRatio;
   imageSize: ImageSize;
@@ -114,6 +119,11 @@ export interface BaseGenerationRequest {
   sourceImageMimeType: string;
   additionalImages?: AdditionalImage[];
   customInstructions?: string;
+  /** Pixel-accurate color palette extracted client-side before generation. */
+  extractedColors?: ExtractedColorPalette;
+  /** Cached AI product extraction to skip the first API phase. */
+  cachedAnalysisText?: string;
+  cachedRiskProfile?: RiskProfile;
 }
 
 export interface ApparelGenerationRequest extends BaseGenerationRequest {
@@ -165,7 +175,9 @@ export type RiskFlag =
   | 'complex_pattern'
   | 'high_contrast_branding'
   | 'multi_section_config'
-  | 'curved_organic_shape';
+  | 'curved_organic_shape'
+  | 'color_sensitive'
+  | 'decorative_element_placement';
 
 export interface RiskProfile {
   flags: RiskFlag[];

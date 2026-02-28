@@ -33,15 +33,17 @@ function applyRepetition(instruction: string): string {
 async function verifyProduct(
   originalBase64: string, originalMime: string,
   generatedBase64: string, generatedMime: string,
-  analysisJson: string
+  analysisJson: string, mode: string
 ): Promise<QCResult> {
   const response = await getAI().models.generateContent({
     model: TEXT_MODEL,
-    contents: [{ parts: [
-      { text: applyRepetition(buildProductQualityCheckPrompt(analysisJson)) },
-      { inlineData: { mimeType: originalMime, data: originalBase64 } },
-      { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
-    ]}],
+    contents: [{
+      parts: [
+        { text: applyRepetition(buildProductQualityCheckPrompt(analysisJson, mode)) },
+        { inlineData: { mimeType: originalMime, data: originalBase64 } },
+        { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
+      ]
+    }],
     config: { responseModalities: ['TEXT'] },
   });
   const text = extractText(response);
@@ -112,7 +114,7 @@ CRITICAL RULES:
 
     const newQc = await verifyProduct(
       editReq.originalRequest.sourceImageBase64, editReq.originalRequest.sourceImageMimeType,
-      finalBase64, finalMime, '{}'
+      finalBase64, finalMime, '{}', editReq.originalRequest.mode
     );
 
     res.setHeader('Content-Type', 'application/json');
