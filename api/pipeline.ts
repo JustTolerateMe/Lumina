@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { GoogleGenAI } from '@google/genai';
 import type { GenerationRequest, ApparelGenerationRequest, QCResult, QCScores, RiskFlag, RiskProfile, ExtractedColorPalette } from '../src/types';
 import { SYSTEM_INSTRUCTION } from '../src/prompts/systemInstruction';
@@ -405,7 +404,7 @@ async function runOnFigurePipeline(req: ApparelGenerationRequest, onProgress: (s
   }
 
   return {
-    id: randomUUID(),
+    id: crypto.randomUUID(),
     imageBase64: generatedBase64,
     mimeType: generatedMime,
     timestamp: Date.now(),
@@ -489,7 +488,7 @@ async function runUniversalPipeline(req: GenerationRequest, onProgress: (s: stri
   }
 
   return {
-    id: randomUUID(),
+    id: crypto.randomUUID(),
     imageBase64: generatedBase64,
     mimeType: generatedMime,
     timestamp: Date.now(),
