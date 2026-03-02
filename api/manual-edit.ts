@@ -1,33 +1,17 @@
-import { GoogleGenAI } from '@google/genai';
-import { SYSTEM_INSTRUCTION } from '../src/prompts/systemInstruction';
-import { buildProductQualityCheckPrompt } from '../src/prompts/productQualityCheckPrompt';
-import type { ManualEditRequest, QCResult } from '../src/types';
+import { SYSTEM_INSTRUCTION } from '../src/prompts/systemInstruction.js';
+import { buildProductQualityCheckPrompt } from '../src/prompts/productQualityCheckPrompt.js';
+import type { ManualEditRequest, QCResult } from '../src/types/index.js';
+import { getAI, extractText, cleanJson, applyRepetition } from './_utils.js';
 
 export const config = { maxDuration: 60 };
 
 const IMAGE_MODEL = 'gemini-2.5-flash-image';
 const TEXT_MODEL = 'gemini-2.5-flash';
 
-function getAI() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured on the server.');
-  return new GoogleGenAI({ apiKey });
-}
-
-function extractText(response: any): string {
-  return response.candidates?.[0]?.content?.parts
-    ?.filter((p: any) => p.text)
-    .map((p: any) => p.text)
-    .join('') ?? '';
-}
-
-function cleanJson(text: string): string {
-  return text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-}
-
-function applyRepetition(instruction: string): string {
-  return `${instruction}\n\n[REPEATED FOR ACCURACY]:\n${instruction}`;
-}
+const DEFAULT_PRODUCT_QC_SCORES = {
+  colorAccuracy: 10, configurationMatch: 10, componentCount: 10,
+  proportionFidelity: 10, constructionDetails: 10, brandingPreservation: 10, overallFidelity: 10,
+};
 
 async function verifyProduct(
   originalBase64: string, originalMime: string,
@@ -43,22 +27,19 @@ async function verifyProduct(
         { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
       ]
     }],
-    config: { responseModalities: ['TEXT'] },
+    config: { systemInstruction: SYSTEM_INSTRUCTION, responseModalities: ['TEXT'] },
   });
   const text = extractText(response);
   try {
     const parsed = JSON.parse(cleanJson(text));
     return {
-      scores: parsed.scores ?? { colorAccuracy: 10, configurationMatch: 10, componentCount: 10, proportionFidelity: 10, constructionDetails: 10, brandingPreservation: 10, overallFidelity: 10 },
+      scores: parsed.scores ?? DEFAULT_PRODUCT_QC_SCORES,
       pass: parsed.pass ?? true,
       issues: Array.isArray(parsed.issues) ? parsed.issues : [],
       recommendation: parsed.recommendation ?? 'approve',
     };
   } catch {
-    return {
-      scores: { colorAccuracy: 10, configurationMatch: 10, componentCount: 10, proportionFidelity: 10, constructionDetails: 10, brandingPreservation: 10, overallFidelity: 10 },
-      pass: true, issues: [], recommendation: 'approve',
-    };
+    return { scores: DEFAULT_PRODUCT_QC_SCORES, pass: true, issues: [], recommendation: 'approve' };
   }
 }
 

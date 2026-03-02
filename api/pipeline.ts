@@ -1,23 +1,23 @@
-import { GoogleGenAI } from '@google/genai';
-import type { GenerationRequest, ApparelGenerationRequest, QCResult, QCScores, RiskFlag, RiskProfile, ExtractedColorPalette } from '../src/types';
-import { SYSTEM_INSTRUCTION } from '../src/prompts/systemInstruction';
-import { buildStudioPrompt } from '../src/prompts/studioPrompt';
-import { buildLifestylePrompt } from '../src/prompts/lifestylePrompt';
+import { getAI, extractText, cleanJson, applyRepetition } from './_utils.js';
+import type { GenerationRequest, ApparelGenerationRequest, QCResult, QCScores, RiskFlag, RiskProfile, ExtractedColorPalette } from '../src/types/index.js';
+import { SYSTEM_INSTRUCTION } from '../src/prompts/systemInstruction.js';
+import { buildStudioPrompt } from '../src/prompts/studioPrompt.js';
+import { buildLifestylePrompt } from '../src/prompts/lifestylePrompt.js';
 import {
   buildOnFigurePrompt,
   buildQualityCheckPrompt,
-} from '../src/prompts/onFigurePrompt';
-import { buildCampaignPrompt } from '../src/prompts/campaignPrompt';
-import { buildHomeCleanCutPrompt } from '../src/prompts/homeCleanCutPrompt';
-import { buildHomeRoomScenePrompt } from '../src/prompts/homeRoomScenePrompt';
-import { buildHomeLifestyleVignettePrompt } from '../src/prompts/homeLifestyleVignettePrompt';
-import { buildHardlinesCleanCutPrompt } from '../src/prompts/hardlinesCleanCutPrompt';
-import { buildHardlinesHeroShotPrompt } from '../src/prompts/hardlinesHeroShotPrompt';
-import { buildHardlinesInContextPrompt } from '../src/prompts/hardlinesInContextPrompt';
-import { buildProductQualityCheckPrompt } from '../src/prompts/productQualityCheckPrompt';
-import { buildEditPrompt } from '../src/prompts/editPrompt';
-import { buildFlatLayPrompt } from '../src/prompts/flatlayPrompt';
-import { buildProductAnalysisAndRiskPrompt, buildGarmentAnalysisAndRiskPrompt } from '../src/prompts/combinedAnalysisPrompt';
+} from '../src/prompts/onFigurePrompt.js';
+import { buildCampaignPrompt } from '../src/prompts/campaignPrompt.js';
+import { buildHomeCleanCutPrompt } from '../src/prompts/homeCleanCutPrompt.js';
+import { buildHomeRoomScenePrompt } from '../src/prompts/homeRoomScenePrompt.js';
+import { buildHomeLifestyleVignettePrompt } from '../src/prompts/homeLifestyleVignettePrompt.js';
+import { buildHardlinesCleanCutPrompt } from '../src/prompts/hardlinesCleanCutPrompt.js';
+import { buildHardlinesHeroShotPrompt } from '../src/prompts/hardlinesHeroShotPrompt.js';
+import { buildHardlinesInContextPrompt } from '../src/prompts/hardlinesInContextPrompt.js';
+import { buildProductQualityCheckPrompt } from '../src/prompts/productQualityCheckPrompt.js';
+import { buildEditPrompt } from '../src/prompts/editPrompt.js';
+import { buildFlatLayPrompt } from '../src/prompts/flatlayPrompt.js';
+import { buildProductAnalysisAndRiskPrompt, buildGarmentAnalysisAndRiskPrompt } from '../src/prompts/combinedAnalysisPrompt.js';
 
 export const config = { maxDuration: 60 };
 
@@ -42,11 +42,16 @@ const STATIC_RISK_CONSTRAINTS: Record<RiskFlag, string> = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function getAI() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured on the server.');
-  return new GoogleGenAI({ apiKey });
-}
+const SCORE_IMPROVEMENT_THRESHOLD = 3;
+
+const DEFAULT_PRODUCT_QC_SCORES = {
+  colorAccuracy: 10, configurationMatch: 10, componentCount: 10,
+  proportionFidelity: 10, constructionDetails: 10, brandingPreservation: 10, overallFidelity: 10,
+};
+
+const DEFAULT_GARMENT_QC_SCORES = {
+  colorAccuracy: 10, graphicPreservation: 10, silhouetteMatch: 10, textureMatch: 10, overallFidelity: 10,
+};
 
 async function generateImage(
   prompt: string,
@@ -58,11 +63,7 @@ async function generateImage(
     { text: prompt },
     { inlineData: { mimeType: sourceImageMimeType, data: sourceImageBase64 } },
   ];
-  if (additionalImages) {
-    for (const img of additionalImages) {
-      parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
-    }
-  }
+  addImageParts(parts, additionalImages);
   const response = await getAI().models.generateContent({
     model: IMAGE_MODEL,
     contents: [{ parts }],
@@ -80,19 +81,17 @@ async function generateImage(
   };
 }
 
-function extractText(response: any): string {
-  return response.candidates?.[0]?.content?.parts
-    ?.filter((p: any) => p.text)
-    .map((p: any) => p.text)
-    .join('') ?? '';
+function addImageParts(parts: any[], additionalImages?: Array<{ base64: string; mimeType: string; label?: string }>): void {
+  if (additionalImages) {
+    for (const img of additionalImages) {
+      parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+    }
+  }
 }
 
-function cleanJson(text: string): string {
-  return text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-}
-
-function applyRepetition(instruction: string): string {
-  return `${instruction}\n\n[REPEATED FOR ACCURACY]:\n${instruction}`;
+function formatAdditionalImagesLabel(additionalImages?: Array<{ base64: string; mimeType: string; label?: string }>): string {
+  if (!additionalImages || additionalImages.length === 0) return '';
+  return `\n\nMULTIPLE REFERENCE IMAGES PROVIDED:\n- Image 1 (primary): Front/main view of the product\n${additionalImages.map((img, i) => `- Image ${i + 2}${img.label ? ` (${img.label})` : ''}: Additional reference angle`).join('\n')}\nUse ALL reference images to ensure maximum fidelity. Every detail visible in any reference must be preserved.`;
 }
 
 function validateConfig(req: GenerationRequest, analysisJson: string): { severity: 'low' | 'high'; message: string } | undefined {
@@ -210,7 +209,7 @@ async function analyzeProductAndRisks(
     { text: applyRepetition(buildProductAnalysisAndRiskPrompt()) },
     { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
   ];
-  if (additionalImages) for (const img of additionalImages) parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+  addImageParts(parts, additionalImages);
 
   const response = await getAI().models.generateContent({
     model: TEXT_MODEL, contents: [{ parts }], config: { responseModalities: ['TEXT'] },
@@ -243,7 +242,7 @@ async function analyzeGarmentAndRisks(
     { text: applyRepetition(buildGarmentAnalysisAndRiskPrompt()) },
     { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
   ];
-  if (additionalImages) for (const img of additionalImages) parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+  addImageParts(parts, additionalImages);
 
   const response = await getAI().models.generateContent({
     model: TEXT_MODEL, contents: [{ parts }], config: { responseModalities: ['TEXT'] },
@@ -276,19 +275,19 @@ async function verifyProduct(
         { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
       ],
     }],
-    config: { responseModalities: ['TEXT'] },
+    config: { systemInstruction: SYSTEM_INSTRUCTION, responseModalities: ['TEXT'] },
   });
   const text = extractText(response);
   try {
     const parsed = JSON.parse(cleanJson(text));
     return {
-      scores: parsed.scores ?? { colorAccuracy: 10, configurationMatch: 10, componentCount: 10, proportionFidelity: 10, constructionDetails: 10, brandingPreservation: 10, overallFidelity: 10 },
+      scores: parsed.scores ?? DEFAULT_PRODUCT_QC_SCORES,
       pass: parsed.pass ?? true,
       issues: Array.isArray(parsed.issues) ? parsed.issues : [],
       recommendation: parsed.recommendation ?? 'approve',
     };
   } catch {
-    return { scores: { colorAccuracy: 10, configurationMatch: 10, componentCount: 10, proportionFidelity: 10, constructionDetails: 10, brandingPreservation: 10, overallFidelity: 10 }, pass: true, issues: [], recommendation: 'approve' };
+    return { scores: DEFAULT_PRODUCT_QC_SCORES, pass: true, issues: [], recommendation: 'approve' };
   }
 }
 
@@ -306,19 +305,19 @@ async function checkGarmentQuality(
         { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
       ],
     }],
-    config: { responseModalities: ['TEXT'] },
+    config: { systemInstruction: SYSTEM_INSTRUCTION, responseModalities: ['TEXT'] },
   });
   const text = extractText(response);
   try {
     const parsed = JSON.parse(cleanJson(text));
     return {
-      scores: parsed.scores ?? { colorAccuracy: 10, graphicPreservation: 10, silhouetteMatch: 10, textureMatch: 10, overallFidelity: 10 },
+      scores: parsed.scores ?? DEFAULT_GARMENT_QC_SCORES,
       pass: parsed.pass ?? true,
       issues: Array.isArray(parsed.issues) ? parsed.issues : [],
       recommendation: parsed.recommendation ?? 'approve',
     };
   } catch {
-    return { scores: { colorAccuracy: 10, graphicPreservation: 10, silhouetteMatch: 10, textureMatch: 10, overallFidelity: 10 }, pass: true, issues: [], recommendation: 'approve' };
+    return { scores: DEFAULT_GARMENT_QC_SCORES, pass: true, issues: [], recommendation: 'approve' };
   }
 }
 
@@ -352,11 +351,7 @@ async function runOnFigurePipeline(req: ApparelGenerationRequest, onProgress: (s
 
   onProgress('Placing garment on model...');
   const basePrompt = buildOnFigurePrompt(req, analysisJson);
-  let imageLabel = '';
-  if (req.additionalImages && req.additionalImages.length > 0) {
-    imageLabel = `\n\nMULTIPLE REFERENCE IMAGES PROVIDED:\n- Image 1 (primary): Front/main view of the product\n${req.additionalImages.map((img, i) => `- Image ${i + 2}${img.label ? ` (${img.label})` : ''}: Additional reference angle`).join('\n')}\nUse ALL reference images to ensure maximum fidelity. Every detail visible in any reference must be preserved.`;
-  }
-  const prompt = basePrompt + buildRiskConstraints(riskProfile) + buildFidelityConstraints(analysisJson, req.extractedColors) + imageLabel;
+  const prompt = basePrompt + buildRiskConstraints(riskProfile) + buildFidelityConstraints(analysisJson, req.extractedColors) + formatAdditionalImagesLabel(req.additionalImages);
 
   const { imageBase64: genBase64, mimeType: genMime } = await generateImage(prompt, req.sourceImageBase64, req.sourceImageMimeType, req.additionalImages);
   let generatedBase64 = genBase64;
@@ -370,7 +365,7 @@ async function runOnFigurePipeline(req: ApparelGenerationRequest, onProgress: (s
 
   while (!finalQc.pass && finalQc.issues.length > 0 && iterationCount <= MAX_EDIT_RETRIES) {
     const currentScore = finalQc.scores.overallFidelity ?? 0;
-    if (iterationCount > 1 && currentScore < previousScore + 3) {
+    if (iterationCount > 1 && currentScore < previousScore + SCORE_IMPROVEMENT_THRESHOLD) {
       onProgress(`Score stagnated at ${currentScore}/10 — stopping refinement.`);
       break;
     }
@@ -385,7 +380,7 @@ async function runOnFigurePipeline(req: ApparelGenerationRequest, onProgress: (s
       { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
       { inlineData: { mimeType: req.sourceImageMimeType, data: req.sourceImageBase64 } },
     ];
-    if (req.additionalImages) for (const img of req.additionalImages) editParts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+    addImageParts(editParts, req.additionalImages);
 
     const retryResponse = await getAI().models.generateContent({
       model: IMAGE_MODEL,
@@ -435,12 +430,7 @@ async function runUniversalPipeline(req: GenerationRequest, onProgress: (s: stri
     req.category === 'home' ? req.product.customInstructions : req.product.customInstructions;
 
   const modePrompt = buildPrompt(req);
-  let imageLabel = '';
-  if (req.additionalImages && req.additionalImages.length > 0) {
-    imageLabel = `\n\nMULTIPLE REFERENCE IMAGES PROVIDED:\n- Image 1 (primary): Front/main view of the product\n${req.additionalImages.map((img, i) => `- Image ${i + 2}${img.label ? ` (${img.label})` : ''}: Additional reference angle`).join('\n')}\nUse ALL reference images to ensure maximum fidelity. Every detail visible in any reference must be preserved.`;
-  }
-
-  const prompt = `${modePrompt}\n\nPRODUCT ANALYSIS (verified ground truth extracted from the reference image — do not deviate from this):\n${analysisJson}\n\n${customInstructions ? `STYLING NOTES / CUSTOM INSTRUCTIONS:\n${customInstructions}\n` : ''}REFERENCE IMAGE: Attached. The analysis above was extracted from this reference.${imageLabel}\nIf any discrepancy between analysis text and the image, the image is the source of truth.\nUse this analysis as a checklist: every detail listed must be preserved in the output.${buildRiskConstraints(riskProfile)}${buildFidelityConstraints(analysisJson, req.extractedColors)}`;
+  const prompt = `${modePrompt}\n\nPRODUCT ANALYSIS (verified ground truth extracted from the reference image — do not deviate from this):\n${analysisJson}\n\n${customInstructions ? `STYLING NOTES / CUSTOM INSTRUCTIONS:\n${customInstructions}\n` : ''}REFERENCE IMAGE: Attached. The analysis above was extracted from this reference.${formatAdditionalImagesLabel(req.additionalImages)}\nIf any discrepancy between analysis text and the image, the image is the source of truth.\nUse this analysis as a checklist: every detail listed must be preserved in the output.${buildRiskConstraints(riskProfile)}${buildFidelityConstraints(analysisJson, req.extractedColors)}`;
 
   const { imageBase64: genBase64, mimeType: genMime } = await generateImage(prompt, req.sourceImageBase64, req.sourceImageMimeType, req.additionalImages);
   let generatedBase64 = genBase64;
@@ -454,7 +444,7 @@ async function runUniversalPipeline(req: GenerationRequest, onProgress: (s: stri
 
   while (!finalQc.pass && finalQc.issues.length > 0 && iterationCount <= MAX_EDIT_RETRIES) {
     const currentScore = finalQc.scores.overallFidelity ?? 0;
-    if (iterationCount > 1 && currentScore < previousScore + 3) {
+    if (iterationCount > 1 && currentScore < previousScore + SCORE_IMPROVEMENT_THRESHOLD) {
       onProgress(`Score stagnated at ${currentScore}/10 — stopping refinement.`);
       break;
     }
@@ -469,7 +459,7 @@ async function runUniversalPipeline(req: GenerationRequest, onProgress: (s: stri
       { inlineData: { mimeType: generatedMime, data: generatedBase64 } },
       { inlineData: { mimeType: req.sourceImageMimeType, data: req.sourceImageBase64 } },
     ];
-    if (req.additionalImages) for (const img of req.additionalImages) editParts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+    addImageParts(editParts, req.additionalImages);
 
     const retryResponse = await getAI().models.generateContent({
       model: IMAGE_MODEL,

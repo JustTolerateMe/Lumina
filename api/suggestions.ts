@@ -1,27 +1,8 @@
-import { GoogleGenAI } from '@google/genai';
-import { buildProductAnalysisPrompt } from '../src/prompts/productAnalysisPrompt';
-import type { ProductSuggestions, ProductCategory } from '../src/types';
+import { buildProductAnalysisPrompt } from '../src/prompts/productAnalysisPrompt.js';
+import type { ProductSuggestions, ProductCategory } from '../src/types/index.js';
+import { getAI, extractText, cleanJson, applyRepetition } from './_utils.js';
 
-function getAI() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured on the server.');
-  return new GoogleGenAI({ apiKey });
-}
-
-function extractText(response: any): string {
-  return response.candidates?.[0]?.content?.parts
-    ?.filter((p: any) => p.text)
-    .map((p: any) => p.text)
-    .join('') ?? '';
-}
-
-function cleanJson(text: string): string {
-  return text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-}
-
-function applyRepetition(instruction: string): string {
-  return `${instruction}\n\n[REPEATED FOR ACCURACY]:\n${instruction}`;
-}
+const TEXT_MODEL = 'gemini-2.5-flash';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -38,7 +19,7 @@ export default async function handler(req: any, res: any) {
     ];
 
     const response = await getAI().models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: TEXT_MODEL,
       contents: [{ parts }],
       config: { responseModalities: ['TEXT'] },
     });
