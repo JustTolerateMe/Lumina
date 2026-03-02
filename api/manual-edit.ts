@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { GoogleGenAI } from '@google/genai';
 import { SYSTEM_INSTRUCTION } from '../src/prompts/systemInstruction';
 import { buildProductQualityCheckPrompt } from '../src/prompts/productQualityCheckPrompt';
@@ -119,7 +118,7 @@ CRITICAL RULES:
 
     res.setHeader('Content-Type', 'application/json');
     res.status(200).json({
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       imageBase64: finalBase64,
       mimeType: finalMime,
       timestamp: Date.now(),
