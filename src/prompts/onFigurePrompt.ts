@@ -1,46 +1,6 @@
-import { ApparelGenerationRequest } from '../types';
-import { MODEL_POSE_PRESETS, SKIN_TONE_DESCRIPTIONS, AGE_GROUP_PRESETS } from './presets';
-import { buildRealismBlock } from './realismDirectives';
-
-export function buildAnalysisPrompt(): string {
-  return `Analyze the garment in this image and provide a precise technical \
-description for use as a fashion photography direction brief.
-
-Return a JSON object with exactly these fields:
-
-{
-  "garmentType": "specific garment type",
-  "silhouette": "silhouette description",
-  "primaryColor": "precise color description — hue, saturation, tone",
-  "secondaryColors": ["any additional colors"],
-  "material": "visual material assessment",
-  "materialWeight": "lightweight/medium/heavy",
-  "fitCategory": "oversized/regular/slim/fitted",
-  "collarType": "collar/neckline description",
-  "sleeveStyle": "sleeve description and length",
-  "hemStyle": "hem description",
-  "graphicElements": [
-    {
-      "type": "logo/text/print/embroidery/none",
-      "description": "exact description of graphic",
-      "position": "quadrant + percentage from edge — e.g. 'upper-left, ~12% from left, ~8% from top'",
-      "colors": "colors in the graphic"
-    }
-  ],
-  "structuralDecorativeElements": [
-    {
-      "type": "ribbon | bow | patch | trim | applique | button | zipper-pull | tassel | other",
-      "description": "exact description of the element",
-      "position": "quadrant + percentage from nearest seam or edge — e.g. 'upper-left shoulder seam, ~5% from left edge, ~3% from top'"
-    }
-  ],
-  "constructionDetails": "visible stitching, seams, hardware",
-  "overallStyle": "casual/smart-casual/formal/streetwear/athletic"
-}
-
-Be extremely precise. This is ground truth that will be used to verify \
-accuracy of generated images. Return ONLY the JSON object, no other text.`;
-}
+import { ApparelGenerationRequest } from '../types/index.js';
+import { MODEL_POSE_PRESETS, SKIN_TONE_DESCRIPTIONS, AGE_GROUP_PRESETS } from './presets.js';
+import { buildRealismBlock } from './realismDirectives.js';
 
 export function buildOnFigurePrompt(
   req: ApparelGenerationRequest,

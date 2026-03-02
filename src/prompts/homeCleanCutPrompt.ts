@@ -1,5 +1,5 @@
-import { HomeGenerationRequest } from '../types';
-import { PRODUCT_FINISH_DESCRIPTIONS, PRODUCT_MATERIAL_DESCRIPTIONS } from './presets';
+import { HomeGenerationRequest } from '../types/index.js';
+import { PRODUCT_FINISH_DESCRIPTIONS, PRODUCT_MATERIAL_DESCRIPTIONS } from './presets.js';
 
 export function buildHomeCleanCutPrompt(req: HomeGenerationRequest): string {
     const { product } = req;

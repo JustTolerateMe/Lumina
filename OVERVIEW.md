@@ -79,7 +79,6 @@ Lumina/
 │   │   ├── systemInstruction.ts      # 7 absolute rules sent with every Gemini call
 │   │   ├── combinedAnalysisPrompt.ts # Combined analysis + risk in one prompt (used by pipeline)
 │   │   ├── productAnalysisPrompt.ts  # Product ground truth extraction — used only by suggestions endpoint
-│   │   ├── riskAnalysisPrompt.ts     # 12 risk flag identification — used only by suggestions endpoint
 │   │   ├── productQualityCheckPrompt.ts  # Scores product QC (7 dimensions)
 │   │   ├── onFigurePrompt.ts         # Garment analysis + on-figure generation + garment QC
 │   │   ├── studioPrompt.ts           # Apparel: white studio background
@@ -354,19 +353,11 @@ Extracts 11 dimensions from the reference image into a strict JSON schema. Now u
 
 Dimensions: productType, color, material, finish, configuration, components (inventory with count), proportions, constructionDetails, branding, distinctiveFeatures, structuralDecorativeElements (each with type, description, and quadrant+percentage position).
 
-### `riskAnalysisPrompt.ts` — Failure Mode Pre-Flight (Suggestions Only)
-
-Checks which of 12 risk flags apply to a given product, writing product-specific constraint overrides for each. Now used only by the `api/suggestions.ts` endpoint. The main pipeline uses `combinedAnalysisPrompt.ts` which performs risk analysis in the same call as product analysis.
-
-Output: JSON with `flags[]` (which flags apply), `descriptions{}` (why each flag applies for this product, referencing actual details), and `constraintOverrides[]` (exact constraint sentences to inject into the generation prompt).
-
 ### `productQualityCheckPrompt.ts` — Product Semantic QC
 
 Scores the generated image against the reference and the analysis JSON on 7 dimensions (0–10 scale): colorAccuracy, configurationMatch, componentCount, proportionFidelity, constructionDetails, brandingPreservation, overallFidelity. Returns scores, pass/fail, and a list of specific issues found.
 
-### `onFigurePrompt.ts` — Three functions for garments
-
-**`buildAnalysisPrompt()`** — Garment-specific ground truth extraction. Extracts: garmentType, silhouette, primaryColor, secondaryColors, material, materialWeight, fitCategory, collarType, sleeveStyle, hemStyle, graphicElements (with quadrant+percentage positions), structuralDecorativeElements, constructionDetails, overallStyle. Includes a graphic warning block for each element ("preserve exactly, zero distortion permitted").
+### `onFigurePrompt.ts` — Two functions for garments
 
 **`buildOnFigurePrompt(req)`** — Full on-figure generation instruction. Includes model specs (age group, gender, skin tone, pose, body proportions from presets), placement physics (shoulder seam must sit at shoulder points, hem falls at natural position, sleeve length matches reference), preservation rules (primary color exact, silhouette exact, graphics zero-tolerance), photography setup (white studio backdrop, 3-point lighting, 85mm lens, full-body framing), and realism directives for skin, fabric, and shadow behavior.
 

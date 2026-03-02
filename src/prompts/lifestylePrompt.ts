@@ -1,6 +1,6 @@
-import { ApparelGenerationRequest } from '../types';
-import { LIFESTYLE_SCENE_PRESETS, MODEL_POSE_PRESETS, SKIN_TONE_DESCRIPTIONS, AGE_GROUP_PRESETS } from './presets';
-import { buildRealismBlock } from './realismDirectives';
+import { ApparelGenerationRequest } from '../types/index.js';
+import { LIFESTYLE_SCENE_PRESETS, MODEL_POSE_PRESETS, SKIN_TONE_DESCRIPTIONS, AGE_GROUP_PRESETS } from './presets.js';
+import { buildRealismBlock } from './realismDirectives.js';
 
 export function buildLifestylePrompt(req: ApparelGenerationRequest): string {
   const { garment, model, scene } = req;

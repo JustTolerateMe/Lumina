@@ -1,4 +1,4 @@
-import type { AgeGroup } from '../types';
+import type { AgeGroup } from '../types/index.js';
 
 export function buildRealismBlock(
   context: 'studio' | 'lifestyle' | 'campaign',

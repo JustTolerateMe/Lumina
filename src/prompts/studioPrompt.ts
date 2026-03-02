@@ -1,6 +1,6 @@
-import { ApparelGenerationRequest } from '../types';
-import { MODEL_POSE_PRESETS, SKIN_TONE_DESCRIPTIONS, AGE_GROUP_PRESETS } from './presets';
-import { buildRealismBlock } from './realismDirectives';
+import { ApparelGenerationRequest } from '../types/index.js';
+import { MODEL_POSE_PRESETS, SKIN_TONE_DESCRIPTIONS, AGE_GROUP_PRESETS } from './presets.js';
+import { buildRealismBlock } from './realismDirectives.js';
 
 export function buildStudioPrompt(req: ApparelGenerationRequest): string {
   const { garment, model } = req;

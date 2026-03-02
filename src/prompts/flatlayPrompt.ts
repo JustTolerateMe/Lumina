@@ -1,5 +1,5 @@
-import { ApparelGenerationRequest } from '../types';
-import { FLATLAY_SURFACE_PRESETS } from './presets';
+import { ApparelGenerationRequest } from '../types/index.js';
+import { FLATLAY_SURFACE_PRESETS } from './presets.js';
 
 export function buildFlatLayPrompt(req: ApparelGenerationRequest): string {
   const { garment } = req;

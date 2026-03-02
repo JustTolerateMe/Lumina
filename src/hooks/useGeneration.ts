@@ -44,11 +44,15 @@ export function useGeneration() {
     setState({ status: 'generating', progress: 'Starting...' });
 
     try {
-      // 1. Try to load cached analysis for this specific image to save ~7s on re-generations
-      const cacheKey = `lumina_analysis_${await hashString(req.sourceImageBase64)}`;
+      // 1 & 2. Hash + color extraction are independent — run in parallel
+      const [cacheKeySuffix, extractedColors] = await Promise.all([
+        hashString(req.sourceImageBase64),
+        extractColorPalette(req.sourceImageBase64, req.sourceImageMimeType).catch(() => undefined),
+      ]);
+      const cacheKey = `lumina_analysis_${cacheKeySuffix}`;
+
       let cachedAnalysisText: string | undefined;
       let cachedRiskProfile: any | undefined;
-
       try {
         const cached = sessionStorage.getItem(cacheKey);
         if (cached) {
@@ -59,11 +63,6 @@ export function useGeneration() {
       } catch (e) {
         console.warn('Failed to read analysis cache', e);
       }
-
-      // 2. Extract pixel-accurate color palette client-side
-      const extractedColors = await extractColorPalette(
-        req.sourceImageBase64, req.sourceImageMimeType
-      ).catch(() => undefined);
 
       // 3. Send generation request to Vercel API
       const result = await generate(

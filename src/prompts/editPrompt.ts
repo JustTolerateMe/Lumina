@@ -1,4 +1,4 @@
-import { QCResult } from '../types';
+import { QCResult } from '../types/index.js';
 
 /**
  * Build a targeted edit prompt for refining an already-generated image.

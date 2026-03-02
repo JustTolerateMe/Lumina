@@ -1,5 +1,5 @@
-import { HomeGenerationRequest } from '../types';
-import { HOME_ROOM_STYLE_PRESETS, PRODUCT_FINISH_DESCRIPTIONS, PRODUCT_MATERIAL_DESCRIPTIONS } from './presets';
+import { HomeGenerationRequest } from '../types/index.js';
+import { HOME_ROOM_STYLE_PRESETS, PRODUCT_FINISH_DESCRIPTIONS, PRODUCT_MATERIAL_DESCRIPTIONS } from './presets.js';
 
 export function buildHomeLifestyleVignettePrompt(req: HomeGenerationRequest): string {
     const { product, roomStyle } = req;

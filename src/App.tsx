@@ -135,7 +135,7 @@ export default function App() {
 
   // Global State
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
-  const [imageSize] = useState<ImageSize>('2K');
+  const imageSize: ImageSize = '2K';
   const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
 
   const colorDesc = category === 'apparel' ? garment.colorDescription :

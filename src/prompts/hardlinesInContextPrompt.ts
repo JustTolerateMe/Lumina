@@ -1,5 +1,5 @@
-import { HardlinesGenerationRequest } from '../types';
-import { HARDLINES_CONTEXT_PRESETS, PRODUCT_MATERIAL_DESCRIPTIONS, PRODUCT_FINISH_DESCRIPTIONS } from './presets';
+import { HardlinesGenerationRequest } from '../types/index.js';
+import { HARDLINES_CONTEXT_PRESETS, PRODUCT_MATERIAL_DESCRIPTIONS, PRODUCT_FINISH_DESCRIPTIONS } from './presets.js';
 
 export function buildHardlinesInContextPrompt(req: HardlinesGenerationRequest): string {
     const { product, context } = req;

@@ -1,5 +1,5 @@
-import { HardlinesGenerationRequest } from '../types';
-import { PRODUCT_FINISH_DESCRIPTIONS, PRODUCT_MATERIAL_DESCRIPTIONS } from './presets';
+import { HardlinesGenerationRequest } from '../types/index.js';
+import { PRODUCT_FINISH_DESCRIPTIONS, PRODUCT_MATERIAL_DESCRIPTIONS } from './presets.js';
 
 export function buildHardlinesCleanCutPrompt(req: HardlinesGenerationRequest): string {
     const { product } = req;
