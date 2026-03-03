@@ -21,9 +21,26 @@ import { buildProductAnalysisAndRiskPrompt, buildGarmentAnalysisAndRiskPrompt } 
 
 export const config = { maxDuration: 60 };
 
-const IMAGE_MODEL = 'gemini-2.5-flash-image';
+const DEFAULT_IMAGE_MODEL = 'gemini-2.5-flash-image';
 const TEXT_MODEL = 'gemini-2.5-flash';
 const MAX_EDIT_RETRIES = 3;
+
+// ── Token usage tracking ──────────────────────────────────────────────────────
+
+const PRICE_INPUT_PER_1M = 0.075;   // USD per 1M input tokens (Gemini 2.5 Flash family)
+const PRICE_OUTPUT_PER_1M = 0.30;   // USD per 1M output tokens
+
+interface UsageAccumulator { inputTokens: number; outputTokens: number; }
+
+function accumulateUsage(acc: UsageAccumulator, meta: any): void {
+  acc.inputTokens  += meta?.promptTokenCount     ?? 0;
+  acc.outputTokens += meta?.candidatesTokenCount ?? 0;
+}
+
+function computeCost(acc: UsageAccumulator): number {
+  return (acc.inputTokens  / 1_000_000) * PRICE_INPUT_PER_1M
+       + (acc.outputTokens / 1_000_000) * PRICE_OUTPUT_PER_1M;
+}
 
 const STATIC_RISK_CONSTRAINTS: Record<RiskFlag, string> = {
   reflective_surface: 'Zero tolerance for highlight displacement. Reflections must match reference light physics exactly.',
@@ -57,7 +74,9 @@ async function generateImage(
   prompt: string,
   sourceImageBase64: string,
   sourceImageMimeType: string,
-  additionalImages?: Array<{ base64: string; mimeType: string; label?: string }>
+  additionalImages?: Array<{ base64: string; mimeType: string; label?: string }>,
+  imageModel: string = DEFAULT_IMAGE_MODEL,
+  usageAcc?: UsageAccumulator
 ): Promise<{ imageBase64: string; mimeType: string }> {
   const parts: any[] = [
     { text: prompt },
@@ -65,10 +84,11 @@ async function generateImage(
   ];
   addImageParts(parts, additionalImages);
   const response = await getAI().models.generateContent({
-    model: IMAGE_MODEL,
+    model: imageModel,
     contents: [{ parts }],
     config: { systemInstruction: SYSTEM_INSTRUCTION, responseModalities: ['TEXT', 'IMAGE'] },
   });
+  if (usageAcc) accumulateUsage(usageAcc, response.usageMetadata);
   const imagePart = response.candidates?.[0]?.content?.parts?.find(
     (p: any) => p.inlineData?.mimeType?.startsWith('image/')
   );
@@ -199,7 +219,8 @@ async function analyzeProductAndRisks(
   imageBase64: string, imageMimeType: string,
   additionalImages?: { base64: string; mimeType: string }[],
   cachedAnalysisText?: string,
-  cachedRiskProfile?: RiskProfile
+  cachedRiskProfile?: RiskProfile,
+  usageAcc?: UsageAccumulator
 ): Promise<{ analysisJson: string; riskProfile: RiskProfile }> {
   if (cachedAnalysisText && cachedRiskProfile) {
     return { analysisJson: cachedAnalysisText, riskProfile: cachedRiskProfile };
@@ -214,6 +235,7 @@ async function analyzeProductAndRisks(
   const response = await getAI().models.generateContent({
     model: TEXT_MODEL, contents: [{ parts }], config: { responseModalities: ['TEXT'] },
   });
+  if (usageAcc) accumulateUsage(usageAcc, response.usageMetadata);
   const text = extractText(response);
   if (!text) throw new Error('Product analysis failed.');
 
@@ -232,7 +254,8 @@ async function analyzeGarmentAndRisks(
   imageBase64: string, imageMimeType: string,
   additionalImages?: { base64: string; mimeType: string }[],
   cachedAnalysisText?: string,
-  cachedRiskProfile?: RiskProfile
+  cachedRiskProfile?: RiskProfile,
+  usageAcc?: UsageAccumulator
 ): Promise<{ analysisJson: string; riskProfile: RiskProfile }> {
   if (cachedAnalysisText && cachedRiskProfile) {
     return { analysisJson: cachedAnalysisText, riskProfile: cachedRiskProfile };
@@ -247,6 +270,7 @@ async function analyzeGarmentAndRisks(
   const response = await getAI().models.generateContent({
     model: TEXT_MODEL, contents: [{ parts }], config: { responseModalities: ['TEXT'] },
   });
+  if (usageAcc) accumulateUsage(usageAcc, response.usageMetadata);
   const text = extractText(response);
   if (!text) throw new Error('Garment analysis failed.');
 
@@ -264,7 +288,8 @@ async function analyzeGarmentAndRisks(
 async function verifyProduct(
   originalBase64: string, originalMime: string,
   generatedBase64: string, generatedMime: string,
-  analysisJson: string, mode: string
+  analysisJson: string, mode: string,
+  usageAcc?: UsageAccumulator
 ): Promise<QCResult> {
   const response = await getAI().models.generateContent({
     model: TEXT_MODEL,
@@ -277,6 +302,7 @@ async function verifyProduct(
     }],
     config: { systemInstruction: SYSTEM_INSTRUCTION, responseModalities: ['TEXT'] },
   });
+  if (usageAcc) accumulateUsage(usageAcc, response.usageMetadata);
   const text = extractText(response);
   try {
     const parsed = JSON.parse(cleanJson(text));
@@ -294,7 +320,8 @@ async function verifyProduct(
 async function checkGarmentQuality(
   originalBase64: string, originalMime: string,
   generatedBase64: string, generatedMime: string,
-  analysisJson: string, mode: string
+  analysisJson: string, mode: string,
+  usageAcc?: UsageAccumulator
 ): Promise<QCResult> {
   const response = await getAI().models.generateContent({
     model: TEXT_MODEL,
@@ -307,6 +334,7 @@ async function checkGarmentQuality(
     }],
     config: { systemInstruction: SYSTEM_INSTRUCTION, responseModalities: ['TEXT'] },
   });
+  if (usageAcc) accumulateUsage(usageAcc, response.usageMetadata);
   const text = extractText(response);
   try {
     const parsed = JSON.parse(cleanJson(text));
@@ -334,18 +362,21 @@ interface ServerResult {
   qcPass: boolean;
   qcIssues: string[];
   iterationCount: number;
+  tokenUsage: { inputTokens: number; outputTokens: number; estimatedCostUsd: number };
   validationWarning?: { severity: 'low' | 'high'; message: string };
 }
 
 // ── On-figure pipeline (apparel only) ────────────────────────────────────────
 
 async function runOnFigurePipeline(req: ApparelGenerationRequest, onProgress: (s: string) => void): Promise<ServerResult> {
+  const imageModel: string = req.imageModel ?? DEFAULT_IMAGE_MODEL;
+  const usageAcc: UsageAccumulator = { inputTokens: 0, outputTokens: 0 };
   let iterationCount = 1;
 
   onProgress('Analyzing garment details and risks...');
   const { analysisJson, riskProfile } = await analyzeGarmentAndRisks(
     req.sourceImageBase64, req.sourceImageMimeType, req.additionalImages,
-    req.cachedAnalysisText, req.cachedRiskProfile
+    req.cachedAnalysisText, req.cachedRiskProfile, usageAcc
   );
   const validationWarning = validateConfig(req, analysisJson);
 
@@ -353,12 +384,12 @@ async function runOnFigurePipeline(req: ApparelGenerationRequest, onProgress: (s
   const basePrompt = buildOnFigurePrompt(req, analysisJson);
   const prompt = basePrompt + buildRiskConstraints(riskProfile) + buildFidelityConstraints(analysisJson, req.extractedColors) + formatAdditionalImagesLabel(req.additionalImages);
 
-  const { imageBase64: genBase64, mimeType: genMime } = await generateImage(prompt, req.sourceImageBase64, req.sourceImageMimeType, req.additionalImages);
+  const { imageBase64: genBase64, mimeType: genMime } = await generateImage(prompt, req.sourceImageBase64, req.sourceImageMimeType, req.additionalImages, imageModel, usageAcc);
   let generatedBase64 = genBase64;
   let generatedMime = genMime;
 
   onProgress('Checking garment accuracy...');
-  const qc = await checkGarmentQuality(req.sourceImageBase64, req.sourceImageMimeType, generatedBase64, generatedMime, analysisJson, req.mode);
+  const qc = await checkGarmentQuality(req.sourceImageBase64, req.sourceImageMimeType, generatedBase64, generatedMime, analysisJson, req.mode, usageAcc);
 
   let finalQc = qc;
   let previousScore = finalQc.scores.overallFidelity ?? 0;
@@ -383,10 +414,11 @@ async function runOnFigurePipeline(req: ApparelGenerationRequest, onProgress: (s
     addImageParts(editParts, req.additionalImages);
 
     const retryResponse = await getAI().models.generateContent({
-      model: IMAGE_MODEL,
+      model: imageModel,
       contents: [{ parts: editParts }],
       config: { systemInstruction: SYSTEM_INSTRUCTION, responseModalities: ['TEXT', 'IMAGE'] },
     });
+    accumulateUsage(usageAcc, retryResponse.usageMetadata);
     const retryPart = retryResponse.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
     if (!retryPart?.inlineData) break;
 
@@ -395,7 +427,7 @@ async function runOnFigurePipeline(req: ApparelGenerationRequest, onProgress: (s
     iterationCount++;
 
     onProgress(`Re-checking after refinement ${iterationCount - 1}...`);
-    finalQc = await checkGarmentQuality(req.sourceImageBase64, req.sourceImageMimeType, generatedBase64, generatedMime, analysisJson, req.mode);
+    finalQc = await checkGarmentQuality(req.sourceImageBase64, req.sourceImageMimeType, generatedBase64, generatedMime, analysisJson, req.mode, usageAcc);
   }
 
   return {
@@ -409,6 +441,7 @@ async function runOnFigurePipeline(req: ApparelGenerationRequest, onProgress: (s
     qcPass: finalQc.pass,
     qcIssues: finalQc.issues,
     iterationCount,
+    tokenUsage: { ...usageAcc, estimatedCostUsd: computeCost(usageAcc) },
     validationWarning,
   };
 }
@@ -416,12 +449,14 @@ async function runOnFigurePipeline(req: ApparelGenerationRequest, onProgress: (s
 // ── Universal pipeline (all other modes) ─────────────────────────────────────
 
 async function runUniversalPipeline(req: GenerationRequest, onProgress: (s: string) => void): Promise<ServerResult> {
+  const imageModel: string = req.imageModel ?? DEFAULT_IMAGE_MODEL;
+  const usageAcc: UsageAccumulator = { inputTokens: 0, outputTokens: 0 };
   let iterationCount = 1;
 
   onProgress('Analyzing product details and risks...');
   const { analysisJson, riskProfile } = await analyzeProductAndRisks(
     req.sourceImageBase64, req.sourceImageMimeType, req.additionalImages,
-    req.cachedAnalysisText, req.cachedRiskProfile
+    req.cachedAnalysisText, req.cachedRiskProfile, usageAcc
   );
   const validationWarning = validateConfig(req, analysisJson);
 
@@ -432,12 +467,12 @@ async function runUniversalPipeline(req: GenerationRequest, onProgress: (s: stri
   const modePrompt = buildPrompt(req);
   const prompt = `${modePrompt}\n\nPRODUCT ANALYSIS (verified ground truth extracted from the reference image — do not deviate from this):\n${analysisJson}\n\n${customInstructions ? `STYLING NOTES / CUSTOM INSTRUCTIONS:\n${customInstructions}\n` : ''}REFERENCE IMAGE: Attached. The analysis above was extracted from this reference.${formatAdditionalImagesLabel(req.additionalImages)}\nIf any discrepancy between analysis text and the image, the image is the source of truth.\nUse this analysis as a checklist: every detail listed must be preserved in the output.${buildRiskConstraints(riskProfile)}${buildFidelityConstraints(analysisJson, req.extractedColors)}`;
 
-  const { imageBase64: genBase64, mimeType: genMime } = await generateImage(prompt, req.sourceImageBase64, req.sourceImageMimeType, req.additionalImages);
+  const { imageBase64: genBase64, mimeType: genMime } = await generateImage(prompt, req.sourceImageBase64, req.sourceImageMimeType, req.additionalImages, imageModel, usageAcc);
   let generatedBase64 = genBase64;
   let generatedMime = genMime;
 
   onProgress('Verifying product accuracy against reference...');
-  const qc = await verifyProduct(req.sourceImageBase64, req.sourceImageMimeType, generatedBase64, generatedMime, analysisJson, req.mode);
+  const qc = await verifyProduct(req.sourceImageBase64, req.sourceImageMimeType, generatedBase64, generatedMime, analysisJson, req.mode, usageAcc);
 
   let finalQc = qc;
   let previousScore = finalQc.scores.overallFidelity ?? 0;
@@ -462,10 +497,11 @@ async function runUniversalPipeline(req: GenerationRequest, onProgress: (s: stri
     addImageParts(editParts, req.additionalImages);
 
     const retryResponse = await getAI().models.generateContent({
-      model: IMAGE_MODEL,
+      model: imageModel,
       contents: [{ parts: editParts }],
       config: { systemInstruction: SYSTEM_INSTRUCTION, responseModalities: ['TEXT', 'IMAGE'] },
     });
+    accumulateUsage(usageAcc, retryResponse.usageMetadata);
     const retryPart = retryResponse.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
     if (!retryPart?.inlineData) break;
 
@@ -474,7 +510,7 @@ async function runUniversalPipeline(req: GenerationRequest, onProgress: (s: stri
     iterationCount++;
 
     onProgress(`Re-checking after refinement ${iterationCount - 1}...`);
-    finalQc = await verifyProduct(req.sourceImageBase64, req.sourceImageMimeType, generatedBase64, generatedMime, analysisJson, req.mode);
+    finalQc = await verifyProduct(req.sourceImageBase64, req.sourceImageMimeType, generatedBase64, generatedMime, analysisJson, req.mode, usageAcc);
   }
 
   return {
@@ -488,6 +524,7 @@ async function runUniversalPipeline(req: GenerationRequest, onProgress: (s: stri
     qcPass: finalQc.pass,
     qcIssues: finalQc.issues,
     iterationCount,
+    tokenUsage: { ...usageAcc, estimatedCostUsd: computeCost(usageAcc) },
     validationWarning,
   };
 }

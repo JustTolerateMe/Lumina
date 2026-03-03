@@ -112,6 +112,8 @@ export interface ExtractedColorPalette {
   dominantHex: string;
 }
 
+export type ImageModel = 'gemini-2.5-flash-image' | 'gemini-3.1-flash-image-preview';
+
 export interface BaseGenerationRequest {
   aspectRatio: AspectRatio;
   imageSize: ImageSize;
@@ -119,6 +121,7 @@ export interface BaseGenerationRequest {
   sourceImageMimeType: string;
   additionalImages?: AdditionalImage[];
   customInstructions?: string;
+  imageModel?: ImageModel;
   /** Pixel-accurate color palette extracted client-side before generation. */
   extractedColors?: ExtractedColorPalette;
   /** Cached AI product extraction to skip the first API phase. */
@@ -260,6 +263,12 @@ export interface HistoryEntry {
 
 // ── Generation Result & State ────────────────────────────────────────
 
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: number;
+}
+
 export interface GenerationResult {
   id: string;
   imageBase64: string;
@@ -274,6 +283,7 @@ export interface GenerationResult {
   pixelQCScores?: PixelQCScores;
   compositeScore?: number;
   iterationCount?: number;
+  tokenUsage?: TokenUsage;
   validationWarning?: {
     severity: 'low' | 'high';
     message: string;

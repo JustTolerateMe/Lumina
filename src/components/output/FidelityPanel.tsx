@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Shield, ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react';
-import { QCScores, PixelQCScores, RiskProfile } from '../../types';
+import { QCScores, PixelQCScores, RiskProfile, TokenUsage } from '../../types';
 
 interface Props {
   semanticScores: QCScores;
@@ -10,6 +10,7 @@ interface Props {
   issues?: string[];
   riskProfile?: RiskProfile;
   iterationCount?: number;
+  tokenUsage?: TokenUsage;
   mode: string;
 }
 
@@ -85,6 +86,7 @@ export function FidelityPanel({
   issues,
   riskProfile,
   iterationCount,
+  tokenUsage,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
 
@@ -112,6 +114,11 @@ export function FidelityPanel({
           {iterationCount && iterationCount > 1 && (
             <span className="text-[10px] text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
               {iterationCount} iterations
+            </span>
+          )}
+          {tokenUsage && tokenUsage.estimatedCostUsd > 0 && (
+            <span className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded font-mono">
+              ~{tokenUsage.estimatedCostUsd < 0.01 ? '<$0.01' : `$${tokenUsage.estimatedCostUsd.toFixed(3)}`}
             </span>
           )}
           {riskProfile && riskProfile.flags.length > 0 && (
@@ -197,6 +204,31 @@ export function FidelityPanel({
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {/* Token Usage */}
+          {tokenUsage && (
+            <div>
+              <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-2">
+                Token Usage
+              </p>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="bg-zinc-800 rounded px-2 py-1.5">
+                  <p className="text-[10px] text-zinc-500 mb-0.5">Input</p>
+                  <p className="text-xs text-zinc-300 font-mono">{tokenUsage.inputTokens.toLocaleString()}</p>
+                </div>
+                <div className="bg-zinc-800 rounded px-2 py-1.5">
+                  <p className="text-[10px] text-zinc-500 mb-0.5">Output</p>
+                  <p className="text-xs text-zinc-300 font-mono">{tokenUsage.outputTokens.toLocaleString()}</p>
+                </div>
+                <div className="bg-zinc-800 rounded px-2 py-1.5">
+                  <p className="text-[10px] text-zinc-500 mb-0.5">Est. Cost</p>
+                  <p className="text-xs text-zinc-300 font-mono">
+                    ~${tokenUsage.estimatedCostUsd < 0.01 ? '<0.01' : tokenUsage.estimatedCostUsd.toFixed(3)}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>

@@ -183,6 +183,7 @@ export function GenerationCanvas({ state, onReset, onManualEdit }: Props) {
             issues={r.qcIssues}
             riskProfile={r.riskProfile}
             iterationCount={r.iterationCount}
+            tokenUsage={r.tokenUsage}
             mode={r.request.mode}
           />
         )}

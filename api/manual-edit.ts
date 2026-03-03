@@ -5,8 +5,23 @@ import { getAI, extractText, cleanJson, applyRepetition } from './_utils.js';
 
 export const config = { maxDuration: 60 };
 
-const IMAGE_MODEL = 'gemini-2.5-flash-image';
+const DEFAULT_IMAGE_MODEL = 'gemini-2.5-flash-image';
 const TEXT_MODEL = 'gemini-2.5-flash';
+
+const PRICE_INPUT_PER_1M = 0.075;
+const PRICE_OUTPUT_PER_1M = 0.30;
+
+interface UsageAccumulator { inputTokens: number; outputTokens: number; }
+
+function accumulateUsage(acc: UsageAccumulator, meta: any): void {
+  acc.inputTokens  += meta?.promptTokenCount     ?? 0;
+  acc.outputTokens += meta?.candidatesTokenCount ?? 0;
+}
+
+function computeCost(acc: UsageAccumulator): number {
+  return (acc.inputTokens  / 1_000_000) * PRICE_INPUT_PER_1M
+       + (acc.outputTokens / 1_000_000) * PRICE_OUTPUT_PER_1M;
+}
 
 const DEFAULT_PRODUCT_QC_SCORES = {
   colorAccuracy: 10, configurationMatch: 10, componentCount: 10,
@@ -51,6 +66,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     const editReq = req.body as ManualEditRequest;
+    const imageModel: string = editReq.originalRequest.imageModel ?? DEFAULT_IMAGE_MODEL;
 
     const inpaintPrompt = `You are an expert AI photo retoucher.
 I am providing you three images in this exact order:
@@ -78,11 +94,13 @@ CRITICAL RULES:
       }
     }
 
+    const usageAcc: UsageAccumulator = { inputTokens: 0, outputTokens: 0 };
     const editResponse = await getAI().models.generateContent({
-      model: IMAGE_MODEL,
+      model: imageModel,
       contents: [{ parts: editParts }],
       config: { systemInstruction: SYSTEM_INSTRUCTION, responseModalities: ['TEXT', 'IMAGE'] },
     });
+    accumulateUsage(usageAcc, editResponse.usageMetadata);
 
     const editedPart = editResponse.candidates?.[0]?.content?.parts?.find(
       (p: any) => p.inlineData?.mimeType?.startsWith('image/')
@@ -109,6 +127,7 @@ CRITICAL RULES:
       qcPass: newQc.pass,
       qcIssues: newQc.issues,
       iterationCount: 1,
+      tokenUsage: { ...usageAcc, estimatedCostUsd: computeCost(usageAcc) },
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message ?? 'Manual edit failed' });

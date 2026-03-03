@@ -14,6 +14,7 @@ import { HardlinesContextPicker } from './components/controls/HardlinesContextPi
 import { CampaignPicker } from './components/controls/CampaignPicker';
 import { FlatlayPicker } from './components/controls/FlatlayPicker';
 import { BrandProfilePicker } from './components/controls/BrandProfilePicker';
+import { ImageModelPicker } from './components/controls/ImageModelPicker';
 import { GenerationCanvas } from './components/output/GenerationCanvas';
 import { GenerationHistory } from './components/output/GenerationHistory';
 import { useHistory } from './hooks/useHistory';
@@ -21,7 +22,7 @@ import {
   ProductCategory, GenerationMode, ApparelMode, HomeMode, HardlinesMode,
   GarmentConfig, HomeProductConfig, HardlinesProductConfig,
   ModelConfig, LifestyleScene, HomeRoomStyle, HardlinesContext,
-  CampaignStyle, FlatlayStyle, AspectRatio, ImageSize, GenerationRequest, BrandProfile
+  CampaignStyle, FlatlayStyle, AspectRatio, ImageSize, ImageModel, GenerationRequest, BrandProfile
 } from './types';
 import { Sparkles, Shirt, Home, Smartphone, Bot } from 'lucide-react';
 import { SecretBlueprint } from './components/SecretBlueprint';
@@ -137,6 +138,7 @@ export default function App() {
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const imageSize: ImageSize = '2K';
   const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
+  const [imageModel, setImageModel] = useState<ImageModel>('gemini-2.5-flash-image');
 
   const colorDesc = category === 'apparel' ? garment.colorDescription :
     category === 'home' ? homeProduct.colorDescription :
@@ -160,6 +162,7 @@ export default function App() {
         mimeType: img.mimeType,
         label: img.label,
       })),
+      imageModel,
     };
 
     if (category === 'apparel') {
@@ -315,6 +318,8 @@ export default function App() {
               ))}
             </div>
           </div>
+
+          <ImageModelPicker value={imageModel} onChange={setImageModel} />
 
           <BrandProfilePicker value={brandProfile} onChange={setBrandProfile} />
 
